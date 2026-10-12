@@ -100,6 +100,50 @@
 //! entries. A node with children cannot be deleted, so a Scope root is
 //! never removed while nodes below it exist.
 //!
+//! ## Node identity
+//!
+//! A node may have an *identity*: an `AccountId` bound to it 1:1 in
+//! [`NodeIdentity`] and [`IdentityNode`]. It lets clients address nodes by
+//! account while the tree, Scope resolution, storage keys, and references
+//! stay in [`NodeId`] space. A node without identity is fully functional.
+//!
+//! - An account is the identity of at most one node, and
+//!   `NodeIdentity[node] == account` exactly when
+//!   `IdentityNode[account] == node`.
+//! - Only the owner of the Scope a node resolves to can set
+//!   ([`Pallet::set_identity`]) or clear ([`Pallet::clear_identity`]) its
+//!   identity; [`Capability::Write`] is not enough. A node's identity can be
+//!   replaced without changing its [`NodeId`].
+//! - Deleting a node removes its identity binding.
+//! - If the identity is the caller, the signed extrinsic is the proof and no
+//!   further signature is needed.
+//! - Any other account must first consent with a [`NodeIdentityPermit`]: a
+//!   signature over [`Pallet::identity_permit_payload`], i.e. the domain
+//!   [`IDENTITY_PERMIT_DOMAIN`], the genesis hash, the [`ScopeId`], and a
+//!   `valid_until` block. The permit must not be expired and may reach at
+//!   most [`Config::MaxIdentityPermitTtl`] blocks ahead.
+//! - [`Pallet::create_node`] can bind an identity in the same call. For a
+//!   child node the permit is checked against the parent's Scope. A new root
+//!   node can only get the caller as identity: its Scope does not exist yet,
+//!   so no permit can name it.
+//!
+//! ### Why a permit needs no nonce
+//!
+//! A [`ScopeId`] is never reused and its owner never changes, and only the
+//! Scope owner can use a permit, so the `ScopeId` already determines who may
+//! consume it. The permit is not consumed: since an account can be the
+//! identity of one node only, it cannot be bound twice, but the owner may
+//! clear the identity and use the same permit for another node of the Scope
+//! until `valid_until`. Replacing the Scope gives its nodes a new `ScopeId`
+//! and so invalidates the permits of the old one, without any bookkeeping.
+//!
+//! This holds only while identity administration is limited to the Scope
+//! owner. If it is ever delegated (for example by a `ManageIdentity`
+//! capability), the permit payload must also name the delegate.
+//!
+//! The permit signature is verified over the raw payload bytes, without a
+//! `<Bytes>` wrapper.
+//!
 //! ## Access
 //!
 //! The Scope owner is authorized for every capability on every node of the
@@ -163,6 +207,8 @@
 //! | [`NextScopeId`] | -                                  | next [`ScopeId`] to allocate                       |
 //! | [`Scopes`]      | [`ScopeId`]                        | [`ScopeInfo`]: owner and Access entry count        |
 //! | [`Access`]      | [`ScopeId`], `(NodeId, AccountId)` | [`AccessFlags`]                                    |
+//! | [`NodeIdentity`] | [`NodeId`]                         | identity `AccountId` of the node                   |
+//! | [`IdentityNode`] | `AccountId`                        | [`NodeId`] the account is the identity of          |
 //!
 //! ## Dispatchable functions
 //!
@@ -174,6 +220,8 @@
 //! | [`delete_node`](Pallet::delete_node)                                  | owner of the node's Scope                                                |
 //! | [`create_scope`](Pallet::create_scope)                                | authorized for [`Capability::CreateScope`]; for a nested Scope root, also the owner of the enclosing Scope |
 //! | [`grant_access`](Pallet::grant_access), [`revoke_access`](Pallet::revoke_access) | owner of the node's Scope                                     |
+//! | [`set_identity`](Pallet::set_identity), [`clear_identity`](Pallet::clear_identity) | owner of the node's Scope                                      |
+//! | [`create_node`](Pallet::create_node) with an `identity`               | as without it; a delegated identity needs a permit, and a root node accepts only the caller |
 //!
 //! ## Public functions
 //!
@@ -183,8 +231,12 @@
 //! - [`Pallet::has_capability`]: whether an account may use a capability at
 //!   a node, with the same checks as the calls that require it, including
 //!   the enclosing Scope owner's right to use [`Pallet::create_scope`].
+//! - [`Pallet::identity_permit_payload`]: the bytes an identity account signs
+//!   to issue a [`NodeIdentityPermit`].
+//! - [`Pallet::identity_of`], [`Pallet::node_by_identity`]: resolve a node to
+//!   its identity and back.
 //!
-//! `resolve_scope` and `has_capability` are also exposed to off-chain
+//! `resolve_scope`, `has_capability`, `identity_of`, and `node_by_identity` are also exposed to off-chain
 //! clients as pallet view functions, described in the runtime metadata (V16)
 //! and executed through the generic `RuntimeViewFunction` runtime API.
 //!
@@ -200,6 +252,10 @@
 //! 5. `Scopes[s].access_count` equals the number of `Access` entries under
 //!    `s` and never exceeds [`MAX_ACCESS_ENTRIES_PER_SCOPE`].
 //! 6. [`NodeId`]s and [`ScopeId`]s are never reused.
+//! 7. `NodeIdentity[node] == account` exactly when `IdentityNode[account] ==
+//!    node`; a node has at most one identity and an account is the identity of
+//!    at most one node.
+//! 8. Only live nodes have an identity.
 //!
 //! ## Example
 //!
@@ -207,11 +263,11 @@
 //! use pallet_robonomics_cps::{Capability, Children, GrantMode, NodeId};
 //!
 //! // Account A creates a root node and becomes the owner of Scope #0.
-//! Cps::create_node(RuntimeOrigin::signed(a), None, Some(meta), None)?;
+//! Cps::create_node(RuntimeOrigin::signed(a), None, Some(meta), None, None)?;
 //! let building = NodeId(0);
 //!
 //! // Only the Scope owner can add children.
-//! Cps::create_node(RuntimeOrigin::signed(a), Some(building), None, None)?;
+//! Cps::create_node(RuntimeOrigin::signed(a), Some(building), None, None, None)?;
 //! let floor = NodeId(1);
 //!
 //! // A makes `floor` the root of nested Scope #1 and hands it over to B:
@@ -222,7 +278,7 @@
 //! Cps::create_scope(RuntimeOrigin::signed(b), floor)?;
 //!
 //! // B adds a sensor and lets account C update its payload.
-//! Cps::create_node(RuntimeOrigin::signed(b), Some(floor), None, None)?;
+//! Cps::create_node(RuntimeOrigin::signed(b), Some(floor), None, None, None)?;
 //! let sensor = NodeId(2);
 //! Cps::grant_access(RuntimeOrigin::signed(b), sensor, c, Capability::Write, GrantMode::Node)?;
 //! Cps::set_payload(RuntimeOrigin::signed(c), sensor, Some(payload))?;
@@ -249,6 +305,10 @@ use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
+
+/// Domain separator of the signed [`NodeIdentityPermit`] payload, the first
+/// element of the tuple built by [`Pallet::identity_permit_payload`].
+pub const IDENTITY_PERMIT_DOMAIN: &[u8] = b"robonomics:cps:node-identity:v1";
 
 /// Maximum size of [`NodeMeta`] in bytes (1 KiB).
 ///
@@ -583,11 +643,89 @@ pub struct ResolvedScope<AccountId> {
     pub path: BoundedVec<NodeId, MaxScopeDepth>,
 }
 
+/// Permit by which an identity account lets the owner of a Scope use it as a
+/// [`NodeIdentity`] of nodes in that Scope until `valid_until`.
+///
+/// The `signature` is made by the identity account over
+/// [`Pallet::identity_permit_payload`]: the domain [`IDENTITY_PERMIT_DOMAIN`],
+/// the genesis hash, the [`ScopeId`] and `valid_until`. The payload names
+/// neither a delegate nor a node, and there is no nonce. This is sound only
+/// because identity administration is limited to the Scope owner and a
+/// `ScopeId` never changes owner.
+///
+/// If identity administration is ever delegated (for example through a
+/// `ManageIdentity` capability), the payload must also bind the delegate,
+/// otherwise any delegate could consume the permit. Do not introduce
+/// delegatable identity administration without changing the payload.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
+pub struct NodeIdentityPermit<BlockNumber, Signature> {
+    /// Last block at which the permit may be used. It may be at most
+    /// [`Config::MaxIdentityPermitTtl`] blocks after the current block.
+    pub valid_until: BlockNumber,
+    /// Signature of the identity account over the permit payload.
+    pub signature: Signature,
+}
+
+/// Identity to bind to a node created by [`Pallet::create_node`].
+///
+/// With `identity` equal to the caller no `permit` is needed. Otherwise a
+/// permit for the Scope of the new node is required, which is only possible
+/// for a child node: the Scope of a new root node does not exist yet.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
+pub struct NodeIdentityAssignment<AccountId, BlockNumber, Signature> {
+    /// Account to use as the identity of the new node.
+    pub identity: AccountId,
+    /// Permit of `identity`, required when `identity` is not the caller.
+    pub permit: Option<NodeIdentityPermit<BlockNumber, Signature>>,
+}
+
+/// [`NodeIdentityPermit`] for the runtime `T`.
+pub type PermitOf<T> = NodeIdentityPermit<
+    frame_system::pallet_prelude::BlockNumberFor<T>,
+    <T as pallet::Config>::Signature,
+>;
+
+/// [`NodeIdentityAssignment`] for the runtime `T`.
+pub type AssignmentOf<T> = NodeIdentityAssignment<
+    <T as frame_system::Config>::AccountId,
+    frame_system::pallet_prelude::BlockNumberFor<T>,
+    <T as pallet::Config>::Signature,
+>;
+
+/// Helper that produces a signed identity permit for benchmarks, because the
+/// pallet is generic over the signature scheme.
+#[cfg(feature = "runtime-benchmarks")]
+pub trait BenchmarkHelper<AccountId, Signature> {
+    /// Generate an account and its signature over `payload`.
+    fn identity_with_signature(payload: &[u8]) -> (AccountId, Signature);
+}
+
+/// Weight of the identity part of `create_node`, added to the weight of the
+/// node itself. A permit means a delegated identity, which is charged for
+/// signature verification.
+fn create_node_identity_weight<T: Config>(
+    parent_id: &Option<NodeId>,
+    identity: &Option<AssignmentOf<T>>,
+) -> frame_support::weights::Weight {
+    match identity {
+        None => frame_support::weights::Weight::zero(),
+        Some(_) if parent_id.is_none() => T::WeightInfo::create_root_identity_self(),
+        Some(assignment) if assignment.permit.is_none() => {
+            T::WeightInfo::create_node_identity_self()
+        }
+        Some(_) => T::WeightInfo::create_node_identity_delegated(),
+    }
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+    use sp_runtime::{
+        traits::{IdentifyAccount, Verify, Zero},
+        Saturating,
+    };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -597,6 +735,21 @@ pub mod pallet {
 
         /// Weights of this pallet's calls.
         type WeightInfo: WeightInfo;
+
+        /// Signature scheme of identity permits. Its signer must identify
+        /// the pallet's `AccountId`; runtimes use `MultiSignature`.
+        type Signature: Verify<Signer: IdentifyAccount<AccountId = Self::AccountId>>
+            + Parameter
+            + Member;
+
+        /// Maximum number of blocks a [`NodeIdentityPermit`] may be valid
+        /// for, counted from the block in which it is used.
+        #[pallet::constant]
+        type MaxIdentityPermitTtl: Get<BlockNumberFor<Self>>;
+
+        /// Creates signed identity permits for benchmarks.
+        #[cfg(feature = "runtime-benchmarks")]
+        type BenchmarkHelper: BenchmarkHelper<Self::AccountId, Self::Signature>;
     }
 
     #[pallet::pallet]
@@ -677,6 +830,28 @@ pub mod pallet {
     pub type Children<T: Config> =
         StorageMap<_, Twox64Concat, NodeId, BoundedVec<NodeId, MaxChildrenPerNode>, ValueQuery>;
 
+    /// Optional identity account of a node.
+    ///
+    /// A node may have no identity. Together with [`IdentityNode`] it forms a
+    /// 1:1 binding: `NodeIdentity[node] == account` exactly when
+    /// `IdentityNode[account] == node`. The entry is removed when the node is
+    /// deleted. [`NodeId`] stays the structural identity of the node.
+    ///
+    /// `NodeId` is allocated by the pallet, so `Twox64Concat` is used.
+    #[pallet::storage]
+    #[pallet::getter(fn node_identity)]
+    pub type NodeIdentity<T: Config> =
+        StorageMap<_, Twox64Concat, NodeId, T::AccountId, OptionQuery>;
+
+    /// Node that an account is the identity of: the reverse of
+    /// [`NodeIdentity`]. An account is the identity of at most one node.
+    ///
+    /// The key is a caller-chosen `AccountId`, so `Blake2_128Concat` is used.
+    #[pallet::storage]
+    #[pallet::getter(fn identity_node)]
+    pub type IdentityNode<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, NodeId, OptionQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -701,6 +876,18 @@ pub mod pallet {
         /// A capability was revoked. Also emitted when the capability was
         /// not granted. [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
+        /// An identity was bound to a node, replacing the previous one if
+        /// any.
+        IdentitySet {
+            node: NodeId,
+            identity: T::AccountId,
+        },
+        /// The identity of a node was removed by `clear_identity`, or because
+        /// the node was deleted.
+        IdentityCleared {
+            node: NodeId,
+            identity: T::AccountId,
+        },
     }
 
     #[pallet::error]
@@ -733,6 +920,23 @@ pub mod pallet {
         /// entries, so no entry for a new `(NodeId, AccountId)` pair can be
         /// added.
         TooManyAccessEntries,
+        /// The account is already the identity of another node.
+        IdentityAlreadyInUse,
+        /// The identity permit signature is not valid for the identity.
+        InvalidIdentityPermit,
+        /// The identity permit expired: `valid_until` is before the current
+        /// block.
+        IdentityPermitExpired,
+        /// The identity permit is valid for longer than
+        /// [`Config::MaxIdentityPermitTtl`] blocks.
+        IdentityPermitTooLong,
+        /// The identity is not the caller and no permit was given.
+        IdentityPermitRequired,
+        /// A root node can only get the caller as identity, because the Scope
+        /// a permit must name does not exist before the root is created.
+        RootIdentityMustBeCaller,
+        /// The node has no identity.
+        IdentityNotSet,
     }
 
     #[pallet::call]
@@ -761,15 +965,19 @@ pub mod pallet {
         /// - [`Error::NodeIdExhausted`], [`Error::ScopeIdExhausted`]: an ID
         ///   counter cannot be incremented.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::create_node(
-            meta.as_ref().map_or(0, |v| v.len() as u32),
-            payload.as_ref().map_or(0, |v| v.len() as u32),
-        ))]
+        #[pallet::weight(
+            T::WeightInfo::create_node(
+                meta.as_ref().map_or(0, |v| v.len() as u32),
+                payload.as_ref().map_or(0, |v| v.len() as u32),
+            )
+            .saturating_add(create_node_identity_weight::<T>(parent_id, identity))
+        )]
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
             meta: Option<NodeMeta>,
             payload: Option<NodePayload>,
+            identity: Option<AssignmentOf<T>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -792,6 +1000,21 @@ pub mod pallet {
                 None
             };
 
+            // The Scope of a root node does not exist before the call, so only
+            // the caller can be its identity.
+            if parent_id.is_none() {
+                if let Some(assignment) = &identity {
+                    ensure!(
+                        assignment.identity == sender,
+                        Error::<T>::RootIdentityMustBeCaller
+                    );
+                    ensure!(
+                        !<IdentityNode<T>>::contains_key(&assignment.identity),
+                        Error::<T>::IdentityAlreadyInUse
+                    );
+                }
+            }
+
             if let Some(pid) = parent_id {
                 ensure!(<Nodes<T>>::contains_key(pid), Error::<T>::ParentNotFound);
 
@@ -806,6 +1029,12 @@ pub mod pallet {
                     (resolved.path.len() as u32) < MAX_SCOPE_DEPTH,
                     Error::<T>::MaxScopeDepthExceeded
                 );
+
+                // A delegated identity needs a permit for the Scope the new
+                // node will resolve to, which is the parent's Scope.
+                if let Some(assignment) = &identity {
+                    Self::ensure_identity_assignable(&sender, resolved.id, assignment)?;
+                }
 
                 // Add to parent's children index
                 <Children<T>>::try_mutate(pid, |children| {
@@ -850,6 +1079,9 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::NodeCreated(node_id, parent_id, sender));
+            if let Some(assignment) = identity {
+                Self::bind_identity(node_id, assignment.identity)?;
+            }
             Ok(())
         }
 
@@ -973,6 +1205,15 @@ pub mod pallet {
                 Self::clear_scope_access(stale_scope, cleared_access_items);
                 <Scopes<T>>::remove(stale_scope);
                 Self::deposit_event(Event::ScopeDeleted(stale_scope, node_id));
+            }
+
+            // Remove the node's identity binding, if any.
+            if let Some(identity) = <NodeIdentity<T>>::take(node_id) {
+                <IdentityNode<T>>::remove(&identity);
+                Self::deposit_event(Event::IdentityCleared {
+                    node: node_id,
+                    identity,
+                });
             }
 
             // Remove the node's attributes
@@ -1159,6 +1400,89 @@ pub mod pallet {
             ));
             Ok(())
         }
+
+        /// Bind `identity` to `node`, replacing the node's current identity
+        /// if it has one.
+        ///
+        /// Only the owner of the Scope that `node` resolves to may call this;
+        /// [`Capability::Write`] does not allow it. If `identity` is the
+        /// caller, no `permit` is needed. Otherwise `permit` must be a
+        /// [`NodeIdentityPermit`] signed by `identity` for that Scope (see
+        /// [`Pallet::identity_permit_payload`]), still valid and valid for at
+        /// most [`Config::MaxIdentityPermitTtl`] blocks. The permit is not
+        /// consumed: `identity` can only be bound to one node at a time,
+        /// but the owner may clear it and use the same permit again until
+        /// it expires or the Scope is replaced.
+        ///
+        /// Setting the identity a node already has succeeds. Emits
+        /// [`Event::IdentitySet`].
+        ///
+        /// Weight is charged for replacing an existing identity.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the Scope.
+        /// - [`Error::IdentityPermitRequired`]: `identity` is not the caller
+        ///   and there is no permit.
+        /// - [`Error::IdentityPermitExpired`], [`Error::IdentityPermitTooLong`],
+        ///   [`Error::InvalidIdentityPermit`]: the permit is not acceptable.
+        /// - [`Error::IdentityAlreadyInUse`]: `identity` belongs to another
+        ///   node.
+        #[pallet::call_index(8)]
+        #[pallet::weight(if permit.is_some() {
+            T::WeightInfo::set_identity_delegated()
+        } else {
+            T::WeightInfo::set_identity_self()
+        })]
+        pub fn set_identity(
+            origin: OriginFor<T>,
+            node: NodeId,
+            identity: T::AccountId,
+            permit: Option<PermitOf<T>>,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            // The Scope comes from the tree, never from the call arguments.
+            let resolved = Self::resolve_scope(node)?;
+            ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
+
+            Self::ensure_identity_assignable(
+                &sender,
+                resolved.id,
+                &NodeIdentityAssignment {
+                    identity: identity.clone(),
+                    permit,
+                },
+            )?;
+            Self::bind_identity(node, identity)?;
+            Ok(())
+        }
+
+        /// Remove the identity of `node`.
+        ///
+        /// Only the owner of the Scope that `node` resolves to may call this.
+        /// Emits [`Event::IdentityCleared`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the Scope.
+        /// - [`Error::IdentityNotSet`]: the node has no identity.
+        #[pallet::call_index(9)]
+        #[pallet::weight(T::WeightInfo::clear_identity())]
+        pub fn clear_identity(origin: OriginFor<T>, node: NodeId) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            let resolved = Self::resolve_scope(node)?;
+            ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
+
+            let identity = <NodeIdentity<T>>::take(node).ok_or(Error::<T>::IdentityNotSet)?;
+            <IdentityNode<T>>::remove(&identity);
+
+            Self::deposit_event(Event::IdentityCleared { node, identity });
+            Ok(())
+        }
     }
 
     /// Read-only queries of derived CPS semantics. They are described in the
@@ -1234,6 +1558,22 @@ pub mod pallet {
                 }),
                 Capability::Write => Self::authorize(node_id, &account_id, capability).is_ok(),
             }
+        }
+
+        /// The identity account of `node_id`, or `None` if the node has no
+        /// identity or does not exist.
+        ///
+        /// Exposed to off-chain clients as a pallet view function.
+        pub fn identity_of(node_id: NodeId) -> Option<T::AccountId> {
+            <NodeIdentity<T>>::get(node_id)
+        }
+
+        /// The node that `account_id` is the identity of, or `None` if it is
+        /// the identity of no node.
+        ///
+        /// Exposed to off-chain clients as a pallet view function.
+        pub fn node_by_identity(account_id: T::AccountId) -> Option<NodeId> {
+            <IdentityNode<T>>::get(account_id)
         }
     }
 
@@ -1322,6 +1662,90 @@ pub mod pallet {
                 }
                 _ => false,
             }
+        }
+
+        /// The bytes an identity account signs to issue a
+        /// [`NodeIdentityPermit`] for the Scope `scope` valid until
+        /// `valid_until`: the SCALE encoding of the tuple
+        /// `(IDENTITY_PERMIT_DOMAIN, genesis_hash, scope, valid_until)`, where
+        /// the domain is encoded as `Vec<u8>` (compact length prefix).
+        ///
+        /// The genesis hash binds the permit to one chain. The payload names
+        /// no delegate, node, or nonce (see [`NodeIdentityPermit`]).
+        pub fn identity_permit_payload(scope: ScopeId, valid_until: BlockNumberFor<T>) -> Vec<u8> {
+            let genesis_hash = frame_system::Pallet::<T>::block_hash(BlockNumberFor::<T>::zero());
+            (IDENTITY_PERMIT_DOMAIN, genesis_hash, scope, valid_until).encode()
+        }
+
+        /// Check that `assignment.identity` may be used as the identity of a
+        /// node that resolves to the Scope `scope`, whose owner is `sender`.
+        ///
+        /// If the identity is `sender`, the signed extrinsic is the proof and
+        /// any permit is ignored. Otherwise the permit must exist, must not
+        /// have expired, must not reach further than
+        /// [`Config::MaxIdentityPermitTtl`] blocks ahead, and must be signed
+        /// by the identity for `scope`. Whether the identity is already in
+        /// use is checked by [`Self::bind_identity`] or the caller.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::IdentityPermitRequired`], [`Error::IdentityPermitExpired`],
+        ///   [`Error::IdentityPermitTooLong`], [`Error::InvalidIdentityPermit`].
+        pub(crate) fn ensure_identity_assignable(
+            sender: &T::AccountId,
+            scope: ScopeId,
+            assignment: &AssignmentOf<T>,
+        ) -> Result<(), Error<T>> {
+            if assignment.identity == *sender {
+                return Ok(());
+            }
+
+            let permit = assignment
+                .permit
+                .as_ref()
+                .ok_or(Error::<T>::IdentityPermitRequired)?;
+
+            let now = frame_system::Pallet::<T>::block_number();
+            ensure!(now <= permit.valid_until, Error::<T>::IdentityPermitExpired);
+            ensure!(
+                permit.valid_until <= now.saturating_add(T::MaxIdentityPermitTtl::get()),
+                Error::<T>::IdentityPermitTooLong
+            );
+
+            let payload = Self::identity_permit_payload(scope, permit.valid_until);
+            ensure!(
+                permit
+                    .signature
+                    .verify(payload.as_slice(), &assignment.identity),
+                Error::<T>::InvalidIdentityPermit
+            );
+            Ok(())
+        }
+
+        /// Bind `identity` to `node`, keeping [`NodeIdentity`] and
+        /// [`IdentityNode`] consistent. The reverse entry of the node's
+        /// previous identity, if any, is removed. Emits [`Event::IdentitySet`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::IdentityAlreadyInUse`]: `identity` is bound to another
+        ///   node.
+        pub(crate) fn bind_identity(node: NodeId, identity: T::AccountId) -> Result<(), Error<T>> {
+            if let Some(bound) = <IdentityNode<T>>::get(&identity) {
+                ensure!(bound == node, Error::<T>::IdentityAlreadyInUse);
+            }
+
+            if let Some(previous) = <NodeIdentity<T>>::get(node) {
+                if previous != identity {
+                    <IdentityNode<T>>::remove(&previous);
+                }
+            }
+
+            <NodeIdentity<T>>::insert(node, &identity);
+            <IdentityNode<T>>::insert(&identity, node);
+
+            Self::deposit_event(Event::IdentitySet { node, identity });
+            Ok(())
         }
 
         /// Allocate a new `ScopeId` owned by `owner` and make `root` its root.

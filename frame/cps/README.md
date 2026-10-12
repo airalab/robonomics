@@ -58,6 +58,54 @@ included, holds at most `MAX_SCOPE_DEPTH` nodes. A nested Scope root starts a
 new count, so the depth of the whole tree is not limited, while Scope
 resolution never visits more than `MAX_SCOPE_DEPTH` nodes.
 
+### Node identity
+
+A node may have an **identity**: an account bound to it 1:1, so clients can
+address the tree by account while the tree, Scope resolution, storage keys,
+and references stay in `NodeId` space. Identity is optional; a node without
+one works the same.
+
+- An account is the identity of at most one node. `NodeIdentity` and
+  `IdentityNode` always agree.
+- Only the owner of the node's Scope can set (`set_identity`) or clear
+  (`clear_identity`) it. `Write` access is not enough. An identity can be
+  replaced without changing the `NodeId`.
+- Deleting a node removes its identity.
+- If the identity is the caller, no further proof is needed. Otherwise the
+  identity account must sign a **permit**.
+- `create_node` can bind an identity in the same call. A new root node accepts
+  only the caller as identity, because the Scope a permit has to name does not
+  exist before the root is created; a delegated identity can be set later with
+  `set_identity`.
+
+**Permit.** The identity account signs the SCALE encoding of the tuple
+
+```
+(b"robonomics:cps:node-identity:v1", genesis_hash, scope_id, valid_until)
+```
+
+(the domain as a `Vec<u8>`, i.e. with a compact length prefix), over the raw
+bytes, without a `<Bytes>` wrapper. `Pallet::identity_permit_payload` builds
+it. The permit must not be expired, and `valid_until` may be at most
+`MaxIdentityPermitTtl` blocks ahead (1 day, 14 400 blocks, in the Robonomics
+runtime). Call arguments carry `NodeIdentityPermit { valid_until, signature }`.
+
+The payload names no node, delegate, or nonce. A `ScopeId` is never reused and
+its owner never changes, and only the Scope owner can use a permit, so the
+`ScopeId` already fixes who may consume it:
+
+- the permit is not consumed; the owner may clear an identity and reuse the
+  same permit for another node of the Scope until it expires;
+- an account is still the identity of one node at a time
+  (`IdentityAlreadyInUse`);
+- replacing the Scope gives its nodes a new `ScopeId`, which invalidates the
+  old permits.
+
+> **Warning.** This relies on identity administration being limited to the
+> Scope owner. If it is ever delegated (for example through a `ManageIdentity`
+> capability), the permit payload must also name the delegate; do not add such
+> a capability without changing the permit format.
+
 ### Capabilities and Access
 
 The Scope owner may do everything on every node of the Scope. Other accounts
@@ -129,14 +177,16 @@ entries.
 
 | Call                                                   | Allowed caller                                                               |
 |--------------------------------------------------------|------------------------------------------------------------------------------|
-| `create_node(parent_id: None, meta, payload)`          | any signed account; the caller becomes owner of the new root's Scope         |
-| `create_node(parent_id: Some(parent), meta, payload)`  | owner of the parent's Scope                                                  |
+| `create_node(parent_id: None, meta, payload, identity)` | any signed account; the caller becomes owner of the new root's Scope         |
+| `create_node(parent_id: Some(parent), meta, payload, identity)` | owner of the parent's Scope                                                  |
 | `set_meta(node_id, meta)`                              | holder of `Write` at the node                                                |
 | `set_payload(node_id, payload)`                        | holder of `Write` at the node                                                |
 | `delete_node(node_id)`                                 | owner of the node's Scope                                                    |
 | `create_scope(node_id)`                                | holder of `CreateScope` at the node; for a nested Scope root, also the owner of the enclosing Scope |
 | `grant_access(node_id, principal, capability, mode)`   | owner of the node's Scope                                                    |
 | `revoke_access(node_id, principal, capability)`        | owner of the node's Scope                                                    |
+| `set_identity(node_id, identity, permit)`              | owner of the node's Scope; `permit` is needed unless `identity` is the caller |
+| `clear_identity(node_id)`                              | owner of the node's Scope                                                    |
 
 A "holder of a capability at the node" is the Scope owner, an account granted
 the capability at the node, or an account granted it with `GrantMode::Subtree`
@@ -148,6 +198,14 @@ at an ancestor in the same Scope. Notes:
   has `MAX_CHILDREN_PER_NODE` children.
 - `delete_node` also removes the node's metadata and payload, and, if the
   node roots a Scope, the Scope and its Access entries.
+- `identity` of `create_node` is optional. A root node accepts only the caller
+  as identity (`RootIdentityMustBeCaller` otherwise); for a child node, a
+  different account needs a permit for the parent's Scope.
+- `set_identity` fails with `IdentityPermitRequired`, `IdentityPermitExpired`,
+  `IdentityPermitTooLong`, or `InvalidIdentityPermit` if the permit is
+  missing or not acceptable, and with `IdentityAlreadyInUse` if the account
+  is the identity of another node. `clear_identity` fails with
+  `IdentityNotSet` for a node without identity.
 - `revoke_access` succeeds, without changing storage, if the capability was
   not granted.
 - `delete_node` and `create_scope` are charged for deleting
@@ -166,6 +224,8 @@ at an ancestor in the same Scope. Notes:
 | `ScopeDeleted(scope_id, root)`                                | `delete_node` on a Scope root                                 |
 | `AccessGranted(scope_id, node_id, principal, capability, mode)` | `grant_access`                                              |
 | `AccessRevoked(scope_id, node_id, principal, capability)`     | `revoke_access`                                               |
+| `IdentitySet { node, identity }`                             | `set_identity`, `create_node` with an identity                |
+| `IdentityCleared { node, identity }`                          | `clear_identity`, `delete_node` of a node with an identity    |
 
 When `create_scope` replaces a Scope, only `ScopeCreated` for the new Scope is
 emitted.
@@ -182,6 +242,8 @@ emitted.
 | `NextScopeId` | -                                  | next `ScopeId`                                               |
 | `Scopes`      | `ScopeId`                          | `ScopeInfo { owner, access_count }`                          |
 | `Access`      | `ScopeId`, `(NodeId, AccountId)`   | capabilities and their modes                                 |
+| `NodeIdentity` | `NodeId`                          | identity account of the node                                 |
+| `IdentityNode` | `AccountId`                       | node the account is the identity of                          |
 
 `NodeId`, `ScopeId`, and `access_count` use SCALE compact encoding: values
 below 64 take 1 byte, below 16 384 take 2 bytes, below 2^30 take 4 bytes.
@@ -200,7 +262,7 @@ The limits are crate constants; changing them requires a runtime upgrade.
 
 ## View functions
 
-The pallet exposes two read-only queries of derived CPS semantics as
+The pallet exposes read-only queries of derived CPS semantics as
 [pallet view functions](https://docs.rs/frame-support/latest/frame_support/pallet_macros/attr.view_functions.html),
 implemented by the same logic as the calls:
 
@@ -212,6 +274,10 @@ implemented by the same logic as the calls:
   that require it: Scope ownership or Access entries, and for `CreateScope`
   also ownership of the immediately enclosing Scope at a nested Scope root;
   `false` if the node does not exist.
+- `identity_of(node_id) -> Option<AccountId>` - the identity of the node, if
+  it has one.
+- `node_by_identity(account) -> Option<NodeId>` - the node the account is the
+  identity of, if any.
 
 They are described in runtime metadata V16 and executed through the generic
 `RuntimeViewFunction` runtime API, so no CPS-specific runtime API is needed.
@@ -244,6 +310,12 @@ XChaCha20-Poly1305, AES-256-GCM, or ChaCha20-Poly1305.
    impl pallet_robonomics_cps::Config for Runtime {
        type RuntimeEvent = RuntimeEvent;
        type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
+       // Signature scheme of identity permits; its signer must identify `AccountId`.
+       type Signature = sp_runtime::MultiSignature;
+       // Longest validity of an identity permit, in blocks (1 day).
+       type MaxIdentityPermitTtl = ConstU32<{ DAYS }>;
+       #[cfg(feature = "runtime-benchmarks")]
+       type BenchmarkHelper = CpsBenchmarkHelper;
    }
    ```
 
@@ -286,14 +358,32 @@ const scope = await api.view.cps.resolveScope(nodeId);
 const canWrite = await api.view.cps.hasCapability(nodeId, accountId, 'Write');
 
 // Create a root node and a child.
-await api.tx.cps.createNode(null, meta, payload).signAndSend(owner);
-await api.tx.cps.createNode(parentId, meta, payload).signAndSend(owner);
+await api.tx.cps.createNode(null, meta, payload, null).signAndSend(owner);
+await api.tx.cps.createNode(parentId, meta, payload, null).signAndSend(owner);
 
 // Make a node the root of a new Scope.
 await api.tx.cps.createScope(nodeId).signAndSend(owner);
 
 // Let another account write to a single node.
 await api.tx.cps.grantAccess(nodeId, principal, 'Write', 'Node').signAndSend(owner);
+
+// Use the owner's own account as the identity of a node.
+await api.tx.cps.setIdentity(nodeId, owner.address, null).signAndSend(owner);
+
+// Use another account as the identity: it signs a permit for the node's Scope
+// first. `scopeId` comes from `api.view.cps.resolveScope(nodeId)`.
+const validUntil = (await api.rpc.chain.getHeader()).number.toNumber() + 1000;
+const genesis = api.genesisHash;
+const payload = api.createType('(Vec<u8>, H256, Compact<u64>, u32)',
+  [stringToU8a('robonomics:cps:node-identity:v1'), genesis, scopeId, validUntil]);
+const signature = robot.sign(payload.toU8a());   // raw bytes, no <Bytes> wrapper
+await api.tx.cps
+  .setIdentity(nodeId, robot.address, { validUntil, signature })
+  .signAndSend(owner);
+
+// Address-based lookups.
+const identity = await api.view.cps.identityOf(nodeId);
+const node = await api.view.cps.nodeByIdentity(robot.address);
 ```
 
 ## Testing

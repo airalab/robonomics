@@ -101,6 +101,8 @@ mod tests {
 
         assert!(names.contains(&"resolve_scope"), "{names:?}");
         assert!(names.contains(&"has_capability"), "{names:?}");
+        assert!(names.contains(&"identity_of"), "{names:?}");
+        assert!(names.contains(&"node_by_identity"), "{names:?}");
     }
 
     #[test]

@@ -92,6 +92,7 @@ pallet-xcm.workspace = true
 pallet-xcm-benchmarks.workspace = true
 polkadot-parachain-primitives.workspace = true
 polkadot-runtime-common.workspace = true
+sp-io = { workspace = true, optional = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -113,6 +114,7 @@ std = [
   "sp-inherents/std",
   "sp-offchain/std",
   "sp-runtime/std",
+  "sp-io?/std",
   "sp-std/std",
   "sp-session/std",
   "sp-transaction-pool/std",
@@ -174,6 +176,7 @@ runtime-benchmarks = [
   "frame-system-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
+  "dep:sp-io",
   "pallet-balances/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-utility/runtime-benchmarks",

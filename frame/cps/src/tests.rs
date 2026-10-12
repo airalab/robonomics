@@ -20,7 +20,7 @@
 use crate::{self as pallet_cps, *};
 use frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
 use parity_scale_codec::Encode;
-use sp_runtime::BuildStorage;
+use sp_runtime::{testing::TestSignature, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -38,9 +38,27 @@ impl frame_system::Config for Runtime {
     type DbWeight = frame_support::weights::constants::RocksDbWeight;
 }
 
+/// Longest identity permit TTL used by the tests, in blocks.
+const MAX_PERMIT_TTL: u64 = 100;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub struct TestBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_cps::BenchmarkHelper<u64, TestSignature> for TestBenchmarkHelper {
+    fn identity_with_signature(payload: &[u8]) -> (u64, TestSignature) {
+        const IDENTITY: u64 = 0x1d;
+        (IDENTITY, TestSignature(IDENTITY, payload.to_vec()))
+    }
+}
+
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::TestWeightInfo;
+    type Signature = TestSignature;
+    type MaxIdentityPermitTtl = frame_support::traits::ConstU64<MAX_PERMIT_TTL>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = TestBenchmarkHelper;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -131,6 +149,7 @@ fn create_root_node_works() {
             RuntimeOrigin::signed(account),
             None,
             None,
+            None,
             None
         ));
 
@@ -151,11 +170,13 @@ fn create_child_node_works() {
             RuntimeOrigin::signed(account),
             None,
             None,
+            None,
             None
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -179,7 +200,8 @@ fn create_node_with_data_works() {
             RuntimeOrigin::signed(account),
             None,
             meta.clone(),
-            payload.clone()
+            payload.clone(),
+            None
         ));
 
         assert_eq!(Cps::meta_of(NodeId(0)), meta);
@@ -196,6 +218,7 @@ fn create_node_with_meta_only_works() {
             RuntimeOrigin::signed(1),
             None,
             meta.clone(),
+            None,
             None
         ));
 
@@ -213,7 +236,8 @@ fn create_node_with_payload_only_works() {
             RuntimeOrigin::signed(1),
             None,
             None,
-            payload.clone()
+            payload.clone(),
+            None
         ));
 
         assert_eq!(Cps::meta_of(NodeId(0)), None);
@@ -224,7 +248,13 @@ fn create_node_with_payload_only_works() {
 #[test]
 fn create_node_without_data_stores_nothing() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_eq!(Cps::meta_of(NodeId(0)), None);
         assert_eq!(Cps::payload_of(NodeId(0)), None);
     });
@@ -234,7 +264,7 @@ fn create_node_without_data_stores_nothing() {
 fn create_node_parent_not_found_fails() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(1), Some(NodeId(42)), None, None),
+            Cps::create_node(RuntimeOrigin::signed(1), Some(NodeId(42)), None, None, None),
             Error::<Runtime>::ParentNotFound
         );
     });
@@ -243,9 +273,15 @@ fn create_node_parent_not_found_fails() {
 #[test]
 fn create_child_without_owner_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(2), Some(NodeId(0)), None, None),
+            Cps::create_node(RuntimeOrigin::signed(2), Some(NodeId(0)), None, None, None),
             Error::<Runtime>::NotScopeOwner
         );
     });
@@ -259,6 +295,7 @@ fn max_scope_depth_enforced() {
             RuntimeOrigin::signed(account),
             None,
             None,
+            None,
             None
         ));
 
@@ -266,6 +303,7 @@ fn max_scope_depth_enforced() {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
+                None,
                 None,
                 None
             ));
@@ -277,7 +315,13 @@ fn max_scope_depth_enforced() {
             MAX_SCOPE_DEPTH as usize
         );
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account), Some(deepest), None, None),
+            Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(deepest),
+                None,
+                None,
+                None
+            ),
             Error::<Runtime>::MaxScopeDepthExceeded
         );
         assert_scope(deepest, ScopeId(0), NodeId(0), account);
@@ -298,6 +342,7 @@ fn create_scope_resets_local_depth_to_zero() {
             RuntimeOrigin::signed(account),
             None,
             None,
+            None,
             None
         ));
 
@@ -306,6 +351,7 @@ fn create_scope_resets_local_depth_to_zero() {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
+                None,
                 None,
                 None
             ));
@@ -320,6 +366,7 @@ fn create_scope_resets_local_depth_to_zero() {
             RuntimeOrigin::signed(account),
             Some(deepest),
             None,
+            None,
             None
         ));
     });
@@ -333,6 +380,7 @@ fn max_children_per_node_enforced() {
             RuntimeOrigin::signed(account),
             None,
             None,
+            None,
             None
         ));
 
@@ -341,12 +389,19 @@ fn max_children_per_node_enforced() {
                 RuntimeOrigin::signed(account),
                 Some(NodeId(0)),
                 None,
+                None,
                 None
             ));
         }
 
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account), Some(NodeId(0)), None, None),
+            Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(0)),
+                None,
+                None,
+                None
+            ),
             Error::<Runtime>::TooManyChildren
         );
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), NodeId(1)));
@@ -354,6 +409,7 @@ fn max_children_per_node_enforced() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -368,7 +424,13 @@ fn max_children_per_node_enforced() {
 #[test]
 fn set_meta_works() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let meta = Some(data(b"updated"));
         assert_ok!(Cps::set_meta(
             RuntimeOrigin::signed(1),
@@ -382,7 +444,13 @@ fn set_meta_works() {
 #[test]
 fn set_meta_without_access_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_noop!(
             Cps::set_meta(RuntimeOrigin::signed(2), NodeId(0), Some(data(b"x"))),
             Error::<Runtime>::AccessDenied
@@ -403,7 +471,13 @@ fn set_meta_missing_node_fails() {
 #[test]
 fn set_payload_works() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let payload = Some(data(b"updated"));
         assert_ok!(Cps::set_payload(
             RuntimeOrigin::signed(1),
@@ -421,6 +495,7 @@ fn replace_meta_works() {
             RuntimeOrigin::signed(1),
             None,
             Some(data(b"original")),
+            None,
             None
         ));
         let replacement = Some(data(b"replacement"));
@@ -440,7 +515,8 @@ fn replace_payload_works() {
             RuntimeOrigin::signed(1),
             None,
             None,
-            Some(data(b"original"))
+            Some(data(b"original")),
+            None
         ));
         let replacement = Some(data(b"replacement"));
         assert_ok!(Cps::set_payload(
@@ -459,6 +535,7 @@ fn remove_meta_works() {
             RuntimeOrigin::signed(1),
             None,
             Some(data(b"meta")),
+            None,
             None
         ));
         assert_ok!(Cps::set_meta(RuntimeOrigin::signed(1), NodeId(0), None));
@@ -473,7 +550,8 @@ fn remove_payload_works() {
             RuntimeOrigin::signed(1),
             None,
             None,
-            Some(data(b"payload"))
+            Some(data(b"payload")),
+            None
         ));
         assert_ok!(Cps::set_payload(RuntimeOrigin::signed(1), NodeId(0), None));
         assert_eq!(Cps::payload_of(NodeId(0)), None);
@@ -487,7 +565,8 @@ fn clear_meta_and_payload_works() {
             RuntimeOrigin::signed(1),
             None,
             Some(data(b"meta")),
-            Some(data(b"payload"))
+            Some(data(b"payload")),
+            None
         ));
         assert_ok!(Cps::set_meta(RuntimeOrigin::signed(1), NodeId(0), None));
         assert_ok!(Cps::set_payload(RuntimeOrigin::signed(1), NodeId(0), None));
@@ -499,10 +578,17 @@ fn clear_meta_and_payload_works() {
 #[test]
 fn delete_leaf_node_works() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -516,7 +602,13 @@ fn delete_leaf_node_works() {
 #[test]
 fn delete_root_node_synchronously_clears_scope_access() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         grant_many(1, NodeId(0), 100, 3);
         assert_eq!(access_count(ScopeId(0)), 3);
 
@@ -532,10 +624,17 @@ fn delete_root_node_synchronously_clears_scope_access() {
 #[test]
 fn delete_node_with_children_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -549,7 +648,13 @@ fn delete_node_with_children_fails() {
 #[test]
 fn delete_node_without_owner_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_noop!(
             Cps::delete_node(RuntimeOrigin::signed(2), NodeId(0)),
             Error::<Runtime>::NotScopeOwner
@@ -576,6 +681,7 @@ fn nested_scope_inheritance_works() {
             RuntimeOrigin::signed(owner),
             None,
             None,
+            None,
             None
         ));
         let global = NodeId(0);
@@ -583,12 +689,14 @@ fn nested_scope_inheritance_works() {
             RuntimeOrigin::signed(owner),
             Some(global),
             None,
+            None,
             None
         ));
         let japan = NodeId(1);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             Some(japan),
+            None,
             None,
             None
         ));
@@ -603,6 +711,7 @@ fn nested_scope_inheritance_works() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             Some(university),
+            None,
             None,
             None
         ));
@@ -621,12 +730,14 @@ fn same_owner_nested_scope_is_still_a_hard_boundary() {
             RuntimeOrigin::signed(owner),
             None,
             None,
+            None,
             None
         ));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             Some(root),
+            None,
             None,
             None
         ));
@@ -665,7 +776,13 @@ fn resolve_scope_missing_node_fails() {
 #[test]
 fn root_scope_created_on_root_creation() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_eq!(active_scope(NodeId(0)), Some((ScopeId(0), 1)));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), 1);
     });
@@ -674,10 +791,17 @@ fn root_scope_created_on_root_creation() {
 #[test]
 fn owner_can_create_nested_scope_on_child() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -693,7 +817,13 @@ fn owner_can_create_nested_scope_on_child() {
 #[test]
 fn delegated_create_scope_can_replace_existing_scope_root() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
 
@@ -719,10 +849,17 @@ fn delegated_create_scope_can_replace_existing_scope_root() {
 #[test]
 fn scope_replacement_allocates_fresh_id_and_clears_old_access_synchronously() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -771,10 +908,17 @@ fn scope_replacement_allocates_fresh_id_and_clears_old_access_synchronously() {
 #[test]
 fn create_scope_id_never_reused() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -796,7 +940,13 @@ fn create_scope_id_never_reused() {
 #[test]
 fn create_scope_without_access_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_noop!(
             Cps::create_scope(RuntimeOrigin::signed(2), NodeId(0)),
             Error::<Runtime>::AccessDenied
@@ -809,10 +959,17 @@ fn create_scope_without_access_fails() {
 /// delegated `CreateScope` grant from the root Scope owner), and node 2
 /// inheriting it.
 fn setup_nested_scope_owned_by_2() -> (ScopeId, ScopeId) {
-    assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+    assert_ok!(Cps::create_node(
+        RuntimeOrigin::signed(1),
+        None,
+        None,
+        None,
+        None
+    ));
     assert_ok!(Cps::create_node(
         RuntimeOrigin::signed(1),
         Some(NodeId(0)),
+        None,
         None,
         None
     ));
@@ -827,6 +984,7 @@ fn setup_nested_scope_owned_by_2() -> (ScopeId, ScopeId) {
     assert_ok!(Cps::create_node(
         RuntimeOrigin::signed(2),
         Some(NodeId(1)),
+        None,
         None,
         None
     ));
@@ -978,10 +1136,17 @@ fn root_scope_can_only_be_replaced_by_its_own_authority() {
 #[test]
 fn create_scope_capability_rejected_on_descendants() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1005,7 +1170,13 @@ fn create_scope_capability_rejected_on_descendants() {
 #[test]
 fn write_access_does_not_authorize_create_scope() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         assert_ok!(Cps::grant_access(
@@ -1025,10 +1196,17 @@ fn write_access_does_not_authorize_create_scope() {
 #[test]
 fn create_scope_node_capability_authorizes_exact_node_even_if_not_active_scope_root() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1051,10 +1229,17 @@ fn create_scope_node_capability_authorizes_exact_node_even_if_not_active_scope_r
 #[test]
 fn create_scope_subtree_capability_authorizes_descendants() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1083,10 +1268,17 @@ fn create_scope_subtree_capability_authorizes_descendants() {
 #[test]
 fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1119,10 +1311,17 @@ fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
 #[test]
 fn delete_node_on_scope_root_with_children_is_rejected() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1131,6 +1330,7 @@ fn delete_node_on_scope_root_with_children_is_rejected() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(japan),
+            None,
             None,
             None
         ));
@@ -1148,11 +1348,18 @@ fn delete_node_on_scope_root_with_children_is_rejected() {
 #[test]
 fn nested_scope_unaffected_by_sibling_operations() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let global = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(global),
+            None,
             None,
             None
         ));
@@ -1161,6 +1368,7 @@ fn nested_scope_unaffected_by_sibling_operations() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(japan),
+            None,
             None,
             None
         ));
@@ -1174,6 +1382,7 @@ fn nested_scope_unaffected_by_sibling_operations() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(global),
+            None,
             None,
             None
         ));
@@ -1190,11 +1399,18 @@ fn nested_scope_unaffected_by_sibling_operations() {
 #[test]
 fn exact_node_access_does_not_apply_to_descendants() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(root),
+            None,
             None,
             None
         ));
@@ -1222,11 +1438,18 @@ fn exact_node_access_does_not_apply_to_descendants() {
 #[test]
 fn inherited_access_applies_to_descendants() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(root),
+            None,
             None,
             None
         ));
@@ -1255,11 +1478,18 @@ fn inherited_access_applies_to_descendants() {
 #[test]
 fn access_stopped_by_nested_scope_boundary() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(root),
+            None,
             None,
             None
         ));
@@ -1268,6 +1498,7 @@ fn access_stopped_by_nested_scope_boundary() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(nested_root),
+            None,
             None,
             None
         ));
@@ -1294,10 +1525,17 @@ fn access_stopped_by_nested_scope_boundary() {
 #[test]
 fn owner_has_implicit_authority_without_access_entries() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1341,7 +1579,13 @@ fn access_flags_bit_packing_and_storage_cleanup() {
         flags.revoke(Capability::Write);
         assert!(flags.is_empty());
 
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let scope_id = ScopeId(0);
         let key = (root, 2u64);
@@ -1403,7 +1647,13 @@ fn access_flags_bit_packing_and_storage_cleanup() {
 #[test]
 fn grant_and_revoke_access_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         assert_ok!(Cps::grant_access(
@@ -1437,7 +1687,13 @@ fn grant_and_revoke_access_work() {
 #[test]
 fn grant_access_requires_scope_owner() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_noop!(
             Cps::grant_access(
                 RuntimeOrigin::signed(2),
@@ -1454,7 +1710,13 @@ fn grant_access_requires_scope_owner() {
 #[test]
 fn revoke_access_requires_scope_owner() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             NodeId(0),
@@ -1474,7 +1736,7 @@ fn node_id_exhaustion_is_atomic() {
     new_test_ext().execute_with(|| {
         NextNodeId::<Runtime>::put(NodeId(u64::MAX));
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(1), None, None, None),
+            Cps::create_node(RuntimeOrigin::signed(1), None, None, None, None),
             Error::<Runtime>::NodeIdExhausted
         );
         assert_eq!(Cps::next_node_id(), NodeId(u64::MAX));
@@ -1486,7 +1748,7 @@ fn scope_id_exhaustion_is_atomic() {
     new_test_ext().execute_with(|| {
         NextScopeId::<Runtime>::put(ScopeId(u64::MAX));
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(1), None, None, None),
+            Cps::create_node(RuntimeOrigin::signed(1), None, None, None, None),
             Error::<Runtime>::ScopeIdExhausted
         );
         assert_eq!(Cps::next_scope_id(), ScopeId(u64::MAX));
@@ -1497,7 +1759,7 @@ fn scope_id_exhaustion_is_atomic() {
 fn all_extrinsics_require_signed_origin() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::none(), None, None, None),
+            Cps::create_node(RuntimeOrigin::none(), None, None, None, None),
             sp_runtime::DispatchError::BadOrigin
         );
         assert_noop!(
@@ -1542,6 +1804,7 @@ fn meta_exactly_at_max_size_succeeds() {
             RuntimeOrigin::signed(1),
             None,
             Some(meta.clone()),
+            None,
             None
         ));
 
@@ -1571,7 +1834,8 @@ fn payload_exactly_at_max_size_succeeds() {
             RuntimeOrigin::signed(1),
             None,
             None,
-            Some(payload.clone())
+            Some(payload.clone()),
+            None
         ));
 
         assert_eq!(Cps::payload_of(NodeId(0)), Some(payload));
@@ -1597,7 +1861,8 @@ fn empty_data_values_are_preserved() {
             RuntimeOrigin::signed(1),
             None,
             Some(empty_meta.clone()),
-            Some(empty_payload.clone())
+            Some(empty_payload.clone()),
+            None
         ));
 
         assert_eq!(Cps::meta_of(NodeId(0)), Some(empty_meta));
@@ -1608,7 +1873,13 @@ fn empty_data_values_are_preserved() {
 #[test]
 fn successful_operations_emit_exact_events() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::set_meta(
             RuntimeOrigin::signed(1),
             NodeId(0),
@@ -1663,7 +1934,8 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
             RuntimeOrigin::signed(1),
             None,
             Some(data(b"m")),
-            Some(data(b"p"))
+            Some(data(b"p")),
+            None
         ));
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(0)));
 
@@ -1672,7 +1944,13 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
         assert_eq!(Cps::payload_of(NodeId(0)), None);
         assert_eq!(active_scope(NodeId(0)), None);
 
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_eq!(Cps::next_node_id(), NodeId(2));
     });
 }
@@ -1680,10 +1958,17 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
 #[test]
 fn has_capability_reflects_owner_and_access_write() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1709,7 +1994,13 @@ fn has_capability_reflects_owner_and_access_write() {
 #[test]
 fn has_capability_reflects_create_scope_semantics() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         assert!(Cps::has_capability(root, 1, Capability::CreateScope));
@@ -1794,7 +2085,13 @@ fn has_capability_create_scope_includes_enclosing_scope_owner() {
 #[test]
 fn create_scope_replacement_has_nothing_to_clear_when_old_scope_had_no_access() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
         assert_eq!(access_count(old_scope), 0);
@@ -1811,7 +2108,13 @@ fn create_scope_replacement_has_nothing_to_clear_when_old_scope_had_no_access() 
 #[test]
 fn create_scope_replacement_synchronously_clears_a_single_access_entry() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
         assert_ok!(Cps::grant_access(
@@ -1834,7 +2137,13 @@ fn create_scope_replacement_synchronously_clears_a_single_access_entry() {
 #[test]
 fn create_scope_replacement_synchronously_clears_access_at_the_bound() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
         grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
@@ -1853,10 +2162,17 @@ fn create_scope_replacement_synchronously_clears_access_at_the_bound() {
 #[test]
 fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(NodeId(0)),
+            None,
             None,
             None
         ));
@@ -1879,7 +2195,13 @@ fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
 #[test]
 fn clear_scope_access_removes_all_entries_in_a_single_bounded_pass() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let scope_id = active_scope_id(root).unwrap();
         grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
@@ -1896,7 +2218,13 @@ fn clear_scope_access_removes_all_entries_in_a_single_bounded_pass() {
 #[test]
 fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
@@ -1927,7 +2255,13 @@ fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
 #[test]
 fn grant_access_mode_change_on_existing_entry_never_consumes_a_slot() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         // Fill every slot but one, then grant the last principal a
@@ -1974,7 +2308,13 @@ fn grant_access_mode_change_on_existing_entry_never_consumes_a_slot() {
 #[test]
 fn revoke_access_leaving_capabilities_does_not_free_a_slot() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -2006,7 +2346,13 @@ fn revoke_access_leaving_capabilities_does_not_free_a_slot() {
 #[test]
 fn revoke_access_last_capability_frees_a_slot() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -2041,7 +2387,13 @@ fn revoke_access_last_capability_frees_a_slot() {
 #[test]
 fn revoking_nonexistent_access_entry_does_not_free_slots() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
 
         grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
@@ -2081,11 +2433,18 @@ fn revoking_nonexistent_access_entry_does_not_free_slots() {
 #[test]
 fn clearing_scope_access_never_touches_nested_scope_state() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(root),
+            None,
             None,
             None
         ));
@@ -2124,12 +2483,24 @@ fn clearing_scope_access_never_touches_nested_scope_state() {
 #[test]
 fn stale_scope_id_never_becomes_active_again() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root_a = NodeId(0);
         let stale_a = active_scope_id(root_a).unwrap();
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root_a));
         let stale_b = active_scope_id(root_a).unwrap();
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root_b = NodeId(1);
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root_a));
         let current_a = active_scope_id(root_a).unwrap();
@@ -2167,7 +2538,13 @@ fn stale_scope_id_never_becomes_active_again() {
 #[test]
 fn scope_id_is_never_reused_after_synchronous_cleanup() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            None,
+            None
+        ));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
         assert_ok!(Cps::grant_access(
@@ -2249,6 +2626,24 @@ mod weight_component_tests {
         fn revoke_access() -> Weight {
             Weight::zero()
         }
+        fn set_identity_self() -> Weight {
+            Weight::from_parts(1, 0)
+        }
+        fn set_identity_delegated() -> Weight {
+            Weight::from_parts(2, 0)
+        }
+        fn clear_identity() -> Weight {
+            Weight::zero()
+        }
+        fn create_node_identity_self() -> Weight {
+            Weight::from_parts(10, 0)
+        }
+        fn create_node_identity_delegated() -> Weight {
+            Weight::from_parts(20, 0)
+        }
+        fn create_root_identity_self() -> Weight {
+            Weight::from_parts(30, 0)
+        }
     }
 
     type WeightTestBlock = frame_system::mocking::MockBlock<WeightTestRuntime>;
@@ -2270,6 +2665,10 @@ mod weight_component_tests {
     impl pallet_cps::Config for WeightTestRuntime {
         type RuntimeEvent = RuntimeEvent;
         type WeightInfo = RecordingWeightInfo;
+        type Signature = TestSignature;
+        type MaxIdentityPermitTtl = frame_support::traits::ConstU64<MAX_PERMIT_TTL>;
+        #[cfg(feature = "runtime-benchmarks")]
+        type BenchmarkHelper = TestBenchmarkHelper;
     }
 
     fn meta_of_len(len: usize) -> Option<NodeMeta> {
@@ -2346,10 +2745,78 @@ mod weight_component_tests {
                 parent_id: None,
                 meta,
                 payload,
+                identity: None,
             };
             let _ = call.get_dispatch_info();
             LAST_CREATE_NODE.with(|c| assert_eq!(c.get(), expected));
         }
+    }
+
+    fn self_assignment(identity: u64) -> AssignmentOf<WeightTestRuntime> {
+        NodeIdentityAssignment {
+            identity,
+            permit: None,
+        }
+    }
+
+    fn delegated_assignment(identity: u64) -> AssignmentOf<WeightTestRuntime> {
+        NodeIdentityAssignment {
+            identity,
+            permit: Some(NodeIdentityPermit {
+                valid_until: 1,
+                signature: TestSignature(identity, Vec::new()),
+            }),
+        }
+    }
+
+    fn create_node_weight(
+        parent_id: Option<NodeId>,
+        identity: Option<AssignmentOf<WeightTestRuntime>>,
+    ) -> Weight {
+        pallet_cps::Call::<WeightTestRuntime>::create_node {
+            parent_id,
+            meta: None,
+            payload: None,
+            identity,
+        }
+        .get_dispatch_info()
+        .call_weight
+    }
+
+    #[test]
+    fn create_node_weight_adds_identity_overhead() {
+        let child = Some(NodeId(0));
+        assert_eq!(create_node_weight(child, None), Weight::zero());
+        assert_eq!(
+            create_node_weight(child, Some(self_assignment(1))),
+            Weight::from_parts(10, 0)
+        );
+        assert_eq!(
+            create_node_weight(child, Some(delegated_assignment(1))),
+            Weight::from_parts(20, 0)
+        );
+        assert_eq!(
+            create_node_weight(None, Some(self_assignment(1))),
+            Weight::from_parts(30, 0)
+        );
+    }
+
+    #[test]
+    fn set_identity_weight_depends_on_permit() {
+        let weight = |permit| {
+            pallet_cps::Call::<WeightTestRuntime>::set_identity {
+                node: NodeId(0),
+                identity: 1,
+                permit,
+            }
+            .get_dispatch_info()
+            .call_weight
+        };
+        assert_eq!(weight(None), Weight::from_parts(1, 0));
+        assert_eq!(
+            weight(delegated_assignment(1).permit),
+            Weight::from_parts(2, 0)
+        );
     }
 }
 
@@ -2467,4 +2934,623 @@ fn view_functions_do_not_mutate_storage() {
             sp_io::storage::root(sp_runtime::StateVersion::V1)
         );
     });
+}
+
+/// Tests of the optional `NodeIdentity` binding.
+mod identity_tests {
+    use super::*;
+    use sp_runtime::testing::H256;
+
+    /// Owner of the Scope created by [`setup`].
+    const OWNER: u64 = 1;
+    /// Accounts used as node identities.
+    const ROBOT: u64 = 7;
+    const SENSOR: u64 = 8;
+
+    type Permit = NodeIdentityPermit<u64, TestSignature>;
+    type Assignment = AssignmentOf<Runtime>;
+
+    /// Account `OWNER` creates root node 0, which roots Scope 0, and child
+    /// nodes 1, 2 and 3 under it.
+    fn setup() {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(OWNER),
+            None,
+            None,
+            None,
+            None
+        ));
+        for _ in 0..3 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                Some(NodeId(0)),
+                None,
+                None,
+                None
+            ));
+        }
+    }
+
+    /// Permit signed by `identity` for `scope`.
+    fn permit(identity: u64, scope: ScopeId, valid_until: u64) -> Permit {
+        NodeIdentityPermit {
+            valid_until,
+            signature: TestSignature(identity, Cps::identity_permit_payload(scope, valid_until)),
+        }
+    }
+
+    fn assignment(identity: u64, permit: Option<Permit>) -> Option<Assignment> {
+        Some(NodeIdentityAssignment { identity, permit })
+    }
+
+    fn set_identity(
+        caller: u64,
+        node: u64,
+        identity: u64,
+        permit: Option<Permit>,
+    ) -> frame_support::dispatch::DispatchResult {
+        Cps::set_identity(
+            RuntimeOrigin::signed(caller),
+            NodeId(node),
+            identity,
+            permit,
+        )
+    }
+
+    /// Both mappings agree with `expected` for `node`.
+    fn assert_bound(node: u64, identity: u64) {
+        assert_eq!(Cps::node_identity(NodeId(node)), Some(identity));
+        assert_eq!(Cps::identity_node(identity), Some(NodeId(node)));
+    }
+
+    fn assert_unbound(node: u64, identity: u64) {
+        assert_eq!(Cps::node_identity(NodeId(node)), None);
+        assert_eq!(Cps::identity_node(identity), None);
+    }
+
+    #[test]
+    fn node_may_exist_without_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::node_identity(NodeId(1)), None);
+            assert_eq!(Cps::identity_of(NodeId(1)), None);
+        });
+    }
+
+    #[test]
+    fn owner_can_assign_own_account_without_permit() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_bound(1, OWNER);
+            System::assert_last_event(
+                Event::IdentitySet {
+                    node: NodeId(1),
+                    identity: OWNER,
+                }
+                .into(),
+            );
+        });
+    }
+
+    #[test]
+    fn self_assignment_ignores_expired_permit_rules() {
+        new_test_ext().execute_with(|| {
+            setup();
+            System::set_block_number(1_000);
+            // No permit, so no TTL rule applies.
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_bound(1, OWNER);
+        });
+    }
+
+    #[test]
+    fn non_owner_cannot_set_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_noop!(set_identity(2, 1, 2, None), Error::<Runtime>::NotScopeOwner);
+            assert_unbound(1, 2);
+        });
+    }
+
+    #[test]
+    fn write_holder_cannot_set_or_clear_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(Cps::grant_access(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(0),
+                2,
+                Capability::Write,
+                GrantMode::Subtree
+            ));
+            assert_noop!(set_identity(2, 1, 2, None), Error::<Runtime>::NotScopeOwner);
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_noop!(
+                Cps::clear_identity(RuntimeOrigin::signed(2), NodeId(1)),
+                Error::<Runtime>::NotScopeOwner
+            );
+            assert_bound(1, OWNER);
+        });
+    }
+
+    #[test]
+    fn set_identity_requires_existing_node() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_noop!(
+                set_identity(OWNER, 42, OWNER, None),
+                Error::<Runtime>::NodeNotFound
+            );
+        });
+    }
+
+    #[test]
+    fn delegated_assignment_with_valid_permit_succeeds() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let permit = permit(ROBOT, ScopeId(0), 50);
+            assert_ok!(set_identity(OWNER, 1, ROBOT, Some(permit)));
+            assert_bound(1, ROBOT);
+        });
+    }
+
+    #[test]
+    fn delegated_assignment_requires_permit() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, None),
+                Error::<Runtime>::IdentityPermitRequired
+            );
+        });
+    }
+
+    #[test]
+    fn permit_for_wrong_scope_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // Node 3 roots nested Scope 1; node 1 still resolves to Scope 0.
+            assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(3)));
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(permit(ROBOT, ScopeId(1), 50))),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+            assert_ok!(set_identity(
+                OWNER,
+                3,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(1), 50))
+            ));
+        });
+    }
+
+    #[test]
+    fn permit_from_replaced_scope_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let old = permit(ROBOT, ScopeId(0), 50);
+            // Replacing the Scope gives nodes 0..=3 the fresh Scope 1.
+            assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(0)));
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(old)),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(1), 50))
+            ));
+        });
+    }
+
+    #[test]
+    fn permit_signed_for_another_chain_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let permit = permit(ROBOT, ScopeId(0), 50);
+            frame_system::BlockHash::<Runtime>::insert(0, H256::repeat_byte(1));
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(permit)),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+        });
+    }
+
+    #[test]
+    fn expired_permit_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            System::set_block_number(10);
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(permit(ROBOT, ScopeId(0), 9))),
+                Error::<Runtime>::IdentityPermitExpired
+            );
+            // The last valid block is `valid_until` itself.
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 10))
+            ));
+        });
+    }
+
+    #[test]
+    fn permit_beyond_max_ttl_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let now = System::block_number();
+            assert_noop!(
+                set_identity(
+                    OWNER,
+                    1,
+                    ROBOT,
+                    Some(permit(ROBOT, ScopeId(0), now + MAX_PERMIT_TTL + 1))
+                ),
+                Error::<Runtime>::IdentityPermitTooLong
+            );
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), now + MAX_PERMIT_TTL))
+            ));
+        });
+    }
+
+    #[test]
+    fn invalid_signature_is_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // Signed by another account.
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(permit(SENSOR, ScopeId(0), 50))),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+            // Signed for a different `valid_until`.
+            let mut tampered = permit(ROBOT, ScopeId(0), 50);
+            tampered.valid_until = 51;
+            assert_noop!(
+                set_identity(OWNER, 1, ROBOT, Some(tampered)),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+        });
+    }
+
+    #[test]
+    fn identity_cannot_be_bound_to_two_nodes() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let permit = permit(ROBOT, ScopeId(0), 50);
+            assert_ok!(set_identity(OWNER, 1, ROBOT, Some(permit.clone())));
+            assert_noop!(
+                set_identity(OWNER, 2, ROBOT, Some(permit)),
+                Error::<Runtime>::IdentityAlreadyInUse
+            );
+            assert_noop!(
+                set_identity(OWNER, 2, ROBOT, Some(self::permit(ROBOT, ScopeId(0), 60))),
+                Error::<Runtime>::IdentityAlreadyInUse
+            );
+            assert_bound(1, ROBOT);
+            assert_eq!(Cps::node_identity(NodeId(2)), None);
+        });
+    }
+
+    #[test]
+    fn owner_identity_cannot_be_bound_to_two_nodes() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_noop!(
+                set_identity(OWNER, 2, OWNER, None),
+                Error::<Runtime>::IdentityAlreadyInUse
+            );
+        });
+    }
+
+    #[test]
+    fn permit_can_be_reused_after_clear_within_scope_and_ttl() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let permit = permit(ROBOT, ScopeId(0), 50);
+            assert_ok!(set_identity(OWNER, 1, ROBOT, Some(permit.clone())));
+            assert_ok!(Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(1)));
+            assert_ok!(set_identity(OWNER, 2, ROBOT, Some(permit.clone())));
+            assert_bound(2, ROBOT);
+
+            // After the TTL the same permit no longer works.
+            assert_ok!(Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(2)));
+            System::set_block_number(51);
+            assert_noop!(
+                set_identity(OWNER, 3, ROBOT, Some(permit)),
+                Error::<Runtime>::IdentityPermitExpired
+            );
+        });
+    }
+
+    #[test]
+    fn identity_can_be_replaced_and_old_reverse_mapping_is_removed() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                SENSOR,
+                Some(permit(SENSOR, ScopeId(0), 50))
+            ));
+            assert_bound(1, SENSOR);
+            assert_eq!(Cps::identity_node(ROBOT), None);
+
+            // The released identity can be used by another node.
+            assert_ok!(set_identity(
+                OWNER,
+                2,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+            assert_bound(2, ROBOT);
+        });
+    }
+
+    #[test]
+    fn setting_the_current_identity_again_succeeds() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_bound(1, OWNER);
+        });
+    }
+
+    #[test]
+    fn clear_identity_removes_both_mappings() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_ok!(Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(1)));
+            assert_unbound(1, OWNER);
+            System::assert_last_event(
+                Event::IdentityCleared {
+                    node: NodeId(1),
+                    identity: OWNER,
+                }
+                .into(),
+            );
+            assert_noop!(
+                Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(1)),
+                Error::<Runtime>::IdentityNotSet
+            );
+            assert_noop!(
+                Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(42)),
+                Error::<Runtime>::NodeNotFound
+            );
+        });
+    }
+
+    #[test]
+    fn delete_node_removes_identity_mappings() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+            assert_ok!(Cps::delete_node(RuntimeOrigin::signed(OWNER), NodeId(1)));
+            assert_unbound(1, ROBOT);
+
+            // The identity can be used again, the NodeId is never reused.
+            assert_ok!(set_identity(
+                OWNER,
+                2,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+            assert_bound(2, ROBOT);
+            assert_eq!(Cps::next_node_id(), NodeId(4));
+        });
+    }
+
+    #[test]
+    fn create_node_without_identity_works() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::node_identity(NodeId(3)), None);
+            assert_eq!(Cps::next_node_id(), NodeId(4));
+        });
+    }
+
+    #[test]
+    fn create_child_with_caller_as_identity_needs_no_permit() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                Some(NodeId(1)),
+                None,
+                None,
+                assignment(OWNER, None)
+            ));
+            assert_bound(4, OWNER);
+        });
+    }
+
+    #[test]
+    fn create_child_with_delegated_identity_uses_parent_scope() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                Some(NodeId(1)),
+                None,
+                None,
+                assignment(ROBOT, Some(permit(ROBOT, ScopeId(0), 50)))
+            ));
+            assert_bound(4, ROBOT);
+            assert_eq!(Cps::identity_of(NodeId(4)), Some(ROBOT));
+            assert_eq!(Cps::node_by_identity(ROBOT), Some(NodeId(4)));
+        });
+    }
+
+    #[test]
+    fn create_child_with_wrong_scope_permit_fails_atomically() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let children = Cps::children_of(NodeId(1));
+            assert_noop!(
+                Cps::create_node(
+                    RuntimeOrigin::signed(OWNER),
+                    Some(NodeId(1)),
+                    None,
+                    None,
+                    assignment(ROBOT, Some(permit(ROBOT, ScopeId(9), 50)))
+                ),
+                Error::<Runtime>::InvalidIdentityPermit
+            );
+            assert_eq!(Cps::next_node_id(), NodeId(4));
+            assert_eq!(Cps::children_of(NodeId(1)), children);
+            assert_eq!(Cps::identity_node(ROBOT), None);
+        });
+    }
+
+    #[test]
+    fn create_child_with_identity_already_in_use_fails() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(OWNER, 1, OWNER, None));
+            assert_noop!(
+                Cps::create_node(
+                    RuntimeOrigin::signed(OWNER),
+                    Some(NodeId(2)),
+                    None,
+                    None,
+                    assignment(OWNER, None)
+                ),
+                Error::<Runtime>::IdentityAlreadyInUse
+            );
+            assert_eq!(Cps::next_node_id(), NodeId(4));
+        });
+    }
+
+    #[test]
+    fn create_child_with_foreign_identity_requires_permit() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_noop!(
+                Cps::create_node(
+                    RuntimeOrigin::signed(OWNER),
+                    Some(NodeId(1)),
+                    None,
+                    None,
+                    assignment(ROBOT, None)
+                ),
+                Error::<Runtime>::IdentityPermitRequired
+            );
+        });
+    }
+
+    #[test]
+    fn root_creation_rejects_delegated_identity() {
+        new_test_ext().execute_with(|| {
+            assert_noop!(
+                Cps::create_node(
+                    RuntimeOrigin::signed(OWNER),
+                    None,
+                    None,
+                    None,
+                    assignment(ROBOT, Some(permit(ROBOT, ScopeId(0), 50)))
+                ),
+                Error::<Runtime>::RootIdentityMustBeCaller
+            );
+            assert_noop!(
+                Cps::create_node(
+                    RuntimeOrigin::signed(OWNER),
+                    None,
+                    None,
+                    None,
+                    assignment(ROBOT, None)
+                ),
+                Error::<Runtime>::RootIdentityMustBeCaller
+            );
+            assert_eq!(Cps::next_node_id(), NodeId(0));
+            assert_eq!(Cps::next_scope_id(), ScopeId(0));
+        });
+    }
+
+    #[test]
+    fn root_creation_with_self_identity_succeeds() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                None,
+                None,
+                None,
+                assignment(OWNER, None)
+            ));
+            assert_bound(0, OWNER);
+        });
+    }
+
+    #[test]
+    fn identity_of_and_node_by_identity_view_functions_resolve_both_ways() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(
+                OWNER,
+                2,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+
+            let identity: Option<u64> =
+                dispatch_view_function(pallet::IdentityOfViewFunction::<Runtime>::new(NodeId(2)));
+            assert_eq!(identity, Some(ROBOT));
+
+            let node: Option<NodeId> =
+                dispatch_view_function(pallet::NodeByIdentityViewFunction::<Runtime>::new(ROBOT));
+            assert_eq!(node, Some(NodeId(2)));
+
+            let missing: Option<NodeId> =
+                dispatch_view_function(pallet::NodeByIdentityViewFunction::<Runtime>::new(SENSOR));
+            assert_eq!(missing, None);
+        });
+    }
+
+    #[test]
+    fn mappings_stay_consistent() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                ROBOT,
+                Some(permit(ROBOT, ScopeId(0), 50))
+            ));
+            assert_ok!(set_identity(OWNER, 2, OWNER, None));
+            assert_ok!(set_identity(
+                OWNER,
+                1,
+                SENSOR,
+                Some(permit(SENSOR, ScopeId(0), 50))
+            ));
+            assert_ok!(Cps::delete_node(RuntimeOrigin::signed(OWNER), NodeId(2)));
+
+            for (node, identity) in NodeIdentity::<Runtime>::iter() {
+                assert_eq!(IdentityNode::<Runtime>::get(identity), Some(node));
+            }
+            for (identity, node) in IdentityNode::<Runtime>::iter() {
+                assert_eq!(NodeIdentity::<Runtime>::get(node), Some(identity));
+            }
+            assert_eq!(NodeIdentity::<Runtime>::iter().count(), 1);
+        });
+    }
 }

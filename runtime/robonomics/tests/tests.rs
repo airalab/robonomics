@@ -178,8 +178,11 @@ fn location_conversion_works() {
 mod cps_view_functions {
     use frame_support::view_functions::{ViewFunction, ViewFunctionDispatchError, ViewFunctionId};
     use pallet_robonomics_cps::{
-        pallet::{HasCapabilityViewFunction, ResolveScopeViewFunction},
-        Capability, Error, NodeId, ResolvedScope,
+        pallet::{
+            HasCapabilityViewFunction, IdentityOfViewFunction, NodeByIdentityViewFunction,
+            ResolveScopeViewFunction,
+        },
+        Capability, Error, IdentityNode, NodeId, NodeIdentity, ResolvedScope,
     };
     use parity_scale_codec::{Decode, Encode};
     use robonomics_runtime::{AccountId, Runtime};
@@ -209,6 +212,38 @@ mod cps_view_functions {
             )
             .expect("view function is dispatched by the runtime");
             assert!(!bool::decode(&mut &output[..]).expect("output decodes"));
+        });
+    }
+
+    #[test]
+    fn runtime_executes_cps_identity_view_functions() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let account = AccountId::from([1u8; 32]);
+            let node = NodeId(7);
+            NodeIdentity::<Runtime>::insert(node, &account);
+            IdentityNode::<Runtime>::insert(&account, node);
+
+            let call = IdentityOfViewFunction::<Runtime>::new(node);
+            let output = Runtime::execute_view_function(
+                IdentityOfViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            assert_eq!(
+                Option::<AccountId>::decode(&mut &output[..]).expect("output decodes"),
+                Some(account.clone())
+            );
+
+            let call = NodeByIdentityViewFunction::<Runtime>::new(account);
+            let output = Runtime::execute_view_function(
+                NodeByIdentityViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            assert_eq!(
+                Option::<NodeId>::decode(&mut &output[..]).expect("output decodes"),
+                Some(node)
+            );
         });
     }
 

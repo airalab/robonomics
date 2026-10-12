@@ -573,9 +573,36 @@ impl pallet_robonomics_rws::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_rws::WeightInfo<Runtime>;
 }
 
+/// Identity permits for CPS nodes are valid for at most one day.
+const MAX_CPS_IDENTITY_PERMIT_TTL: BlockNumber = DAYS;
+
+/// Signs CPS identity permits with sr25519 keys held by the benchmark
+/// keystore.
+#[cfg(feature = "runtime-benchmarks")]
+pub struct CpsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_robonomics_cps::BenchmarkHelper<AccountId, Signature> for CpsBenchmarkHelper {
+    fn identity_with_signature(payload: &[u8]) -> (AccountId, Signature) {
+        use sp_runtime::traits::IdentifyAccount;
+
+        let public = sp_io::crypto::sr25519_generate(0.into(), None);
+        let signature = sp_io::crypto::sr25519_sign(0.into(), &public, payload)
+            .expect("the generated key is in the keystore");
+        (
+            sp_runtime::MultiSigner::from(public).into_account(),
+            signature.into(),
+        )
+    }
+}
+
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
+    type Signature = Signature;
+    type MaxIdentityPermitTtl = ConstU32<MAX_CPS_IDENTITY_PERMIT_TTL>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = CpsBenchmarkHelper;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {

@@ -237,5 +237,15 @@ mod tests {
         assert_eq!(has_capability.pallet_name(), "CPS");
         assert_eq!(has_capability.function_name(), "has_capability");
         assert!(has_capability.validation_hash().is_some());
+
+        let identity_of = api::view_functions().cps().identity_of(NodeId(0));
+        assert_eq!(identity_of.function_name(), "identity_of");
+        assert!(identity_of.validation_hash().is_some());
+
+        let node_by_identity = api::view_functions()
+            .cps()
+            .node_by_identity(subxt::utils::AccountId32([0u8; 32]));
+        assert_eq!(node_by_identity.function_name(), "node_by_identity");
+        assert!(node_by_identity.validation_hash().is_some());
     }
 }
