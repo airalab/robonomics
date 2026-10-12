@@ -144,6 +144,29 @@
 //! The permit signature is verified over the raw payload bytes, without a
 //! `<Bytes>` wrapper.
 //!
+//! ### Address-oriented views
+//!
+//! Clients can navigate the tree by identity accounts only, through the view
+//! functions [`Pallet::parent`], [`Pallet::children`], [`Pallet::meta`],
+//! [`Pallet::payload`], [`Pallet::scope_of_address`] and
+//! [`Pallet::address_has_capability`]. They take identity accounts, resolve
+//! them through [`IdentityNode`], run on the canonical [`NodeId`] tree and
+//! never return a [`NodeId`]. They are a strict projection of that tree, not
+//! a second tree:
+//!
+//! - A result that has to contain a node without identity fails with
+//!   [`AddressViewError::MissingProjectedIdentity`] as a whole. Nodes are
+//!   never filtered out, so [`Pallet::children`] never returns a partial list
+//!   and there is no "nearest identified ancestor".
+//! - An input account that is the identity of no node fails with
+//!   [`AddressViewError::IdentityNotFound`].
+//! - Only nodes shown in the result need an identity: the Scope root for
+//!   [`Pallet::scope_of_address`], the target alone for
+//!   [`Pallet::address_has_capability`], whose Scope and Access resolution
+//!   is the canonical one. [`ScopeId`] and [`Capability`] stay visible.
+//! - The views are not recursive. A client walks the hierarchy one bounded
+//!   call at a time.
+//!
 //! ## Access
 //!
 //! The Scope owner is authorized for every capability on every node of the
@@ -641,6 +664,37 @@ pub struct ResolvedScope<AccountId> {
     /// Nodes from the queried node (first) to the Scope root (last),
     /// both included.
     pub path: BoundedVec<NodeId, MaxScopeDepth>,
+}
+
+/// Error of the address-oriented view functions ([`Pallet::parent`],
+/// [`Pallet::children`], [`Pallet::meta`], [`Pallet::payload`],
+/// [`Pallet::scope_of_address`] and [`Pallet::address_has_capability`]).
+///
+/// The views are a strict projection of the canonical [`NodeId`] tree onto
+/// identity accounts, so a call fails rather than expose a [`NodeId`] or
+/// silently omit part of the topology.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
+pub enum AddressViewError {
+    /// The input account is not the identity of any node.
+    IdentityNotFound,
+    /// A node that the result has to contain has no identity, so it cannot
+    /// be shown as an account.
+    MissingProjectedIdentity,
+}
+
+/// Address-oriented Scope returned by [`Pallet::scope_of_address`].
+///
+/// [`ScopeId`] is not a structural node identifier but the immutable
+/// administrative generation of a Scope, so it stays visible. The Scope
+/// root is shown by its identity account.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
+pub struct AddressScope<AccountId> {
+    /// Identifier of the Scope.
+    pub scope_id: ScopeId,
+    /// Identity account of the Scope root node.
+    pub root: AccountId,
+    /// Owner of the Scope.
+    pub owner: AccountId,
 }
 
 /// Permit by which an identity account lets the owner of a Scope use it as a
@@ -1574,6 +1628,159 @@ pub mod pallet {
         /// Exposed to off-chain clients as a pallet view function.
         pub fn node_by_identity(account_id: T::AccountId) -> Option<NodeId> {
             <IdentityNode<T>>::get(account_id)
+        }
+
+        // Address-oriented views: a strict projection of the canonical
+        // [`NodeId`] tree onto identity accounts.
+        //
+        // Inputs and node references in results are identity accounts, and a
+        // [`NodeId`] is never returned. [`NodeIdentity`] is optional, so a
+        // result that has to contain a node without identity fails with
+        // [`AddressViewError::MissingProjectedIdentity`] as a whole: nodes are
+        // never filtered out and there is no fallback to a [`NodeId`]. An
+        // input account that is not linked to a node fails with
+        // [`AddressViewError::IdentityNotFound`].
+        //
+        // Address resolution uses only [`IdentityNode`], and the views write
+        // nothing. They are intentionally not recursive: a client walks the
+        // hierarchy one bounded call at a time. A pallet admits a single
+        // `#[pallet::view_functions]` block, so they live next to the
+        // NodeId-based views above.
+
+        /// Identity of the parent of the node that `identity` is bound to.
+        ///
+        /// Returns `Ok(None)` for a root node.
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
+        /// - [`AddressViewError::MissingProjectedIdentity`]: the parent has no
+        ///   identity.
+        pub fn parent(identity: T::AccountId) -> Result<Option<T::AccountId>, AddressViewError> {
+            let node_id = Self::linked_node(&identity)?;
+            match Self::node_info_of_identity(node_id)?.parent {
+                Some(parent_id) => Self::project_node(parent_id).map(Some),
+                None => Ok(None),
+            }
+        }
+
+        /// Identities of the direct children of the node that `identity` is
+        /// bound to, in creation order.
+        ///
+        /// All-or-nothing: the result is bounded by
+        /// [`MAX_CHILDREN_PER_NODE`].
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
+        /// - [`AddressViewError::MissingProjectedIdentity`]: at least one
+        ///   child has no identity. No partial result is returned.
+        pub fn children(identity: T::AccountId) -> Result<Vec<T::AccountId>, AddressViewError> {
+            let node_id = Self::linked_node(&identity)?;
+            <Children<T>>::get(node_id)
+                .into_iter()
+                .map(Self::project_node)
+                .collect()
+        }
+
+        /// Metadata of the node that `identity` is bound to, `None` if it has
+        /// none.
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
+        pub fn meta(identity: T::AccountId) -> Result<Option<NodeMeta>, AddressViewError> {
+            Ok(<Meta<T>>::get(Self::linked_node(&identity)?))
+        }
+
+        /// Payload of the node that `identity` is bound to, `None` if it has
+        /// none.
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
+        pub fn payload(identity: T::AccountId) -> Result<Option<NodePayload>, AddressViewError> {
+            Ok(<Payload<T>>::get(Self::linked_node(&identity)?))
+        }
+
+        /// The Scope of the node that `identity` is bound to, resolved by
+        /// [`Self::resolve_scope`] and shown as an [`AddressScope`].
+        ///
+        /// Only the Scope root has to have an identity. Nodes between
+        /// `identity` and the root need none.
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
+        /// - [`AddressViewError::MissingProjectedIdentity`]: the Scope root
+        ///   has no identity.
+        pub fn scope_of_address(
+            identity: T::AccountId,
+        ) -> Result<AddressScope<T::AccountId>, AddressViewError> {
+            let node_id = Self::linked_node(&identity)?;
+            let resolved = Self::resolve_scope(node_id).map_err(|_| {
+                // A node bound to an identity always resolves to a Scope.
+                frame_support::defensive!("linked node resolves to a Scope");
+                AddressViewError::IdentityNotFound
+            })?;
+            Ok(AddressScope {
+                scope_id: resolved.id,
+                root: Self::project_node(resolved.root)?,
+                owner: resolved.owner,
+            })
+        }
+
+        /// Whether `caller` may use `capability` at the node that `target` is
+        /// bound to, by [`Self::has_capability`].
+        ///
+        /// Only `target` has to be linked to a node. Ancestors visited by
+        /// the Scope and Access resolution need no identity, since they are
+        /// not shown.
+        ///
+        /// # Errors
+        ///
+        /// - [`AddressViewError::IdentityNotFound`]: `target` is not linked.
+        pub fn address_has_capability(
+            caller: T::AccountId,
+            target: T::AccountId,
+            capability: Capability,
+        ) -> Result<bool, AddressViewError> {
+            let node_id = Self::linked_node(&target)?;
+            Ok(Self::has_capability(node_id, caller, capability))
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        /// The node that `identity` is bound to.
+        ///
+        /// # Errors
+        ///
+        /// [`AddressViewError::IdentityNotFound`] if `identity` is not linked.
+        fn linked_node(identity: &T::AccountId) -> Result<NodeId, AddressViewError> {
+            <IdentityNode<T>>::get(identity).ok_or(AddressViewError::IdentityNotFound)
+        }
+
+        /// [`NodeInfo`] of a node found through [`IdentityNode`].
+        ///
+        /// The 1:1 binding is removed together with the node, so a missing
+        /// node is a storage invariant violation. It is reported as
+        /// [`AddressViewError::IdentityNotFound`] only in release builds.
+        fn node_info_of_identity(node_id: NodeId) -> Result<NodeInfo, AddressViewError> {
+            <Nodes<T>>::get(node_id).ok_or_else(|| {
+                frame_support::defensive!("linked node exists");
+                AddressViewError::IdentityNotFound
+            })
+        }
+
+        /// Identity of `node_id`, for a node that the result of an
+        /// address-oriented view has to contain.
+        ///
+        /// # Errors
+        ///
+        /// [`AddressViewError::MissingProjectedIdentity`] if the node has no
+        /// identity.
+        fn project_node(node_id: NodeId) -> Result<T::AccountId, AddressViewError> {
+            <NodeIdentity<T>>::get(node_id).ok_or(AddressViewError::MissingProjectedIdentity)
         }
     }
 

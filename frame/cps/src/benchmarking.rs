@@ -143,6 +143,16 @@ fn bind_placeholder_identity<T: Config>(node: NodeId) {
     IdentityNode::<T>::insert(&previous, node);
 }
 
+/// Bind the identity `account("view_identity", index, 0)` to `node`, writing
+/// both identity mappings directly, and return it. Used by the benchmarks of
+/// the address-oriented views, which only read the mappings.
+fn bind_view_identity<T: Config>(node: NodeId, index: u32) -> T::AccountId {
+    let identity: T::AccountId = account("view_identity", index, 0);
+    NodeIdentity::<T>::insert(node, &identity);
+    IdentityNode::<T>::insert(&identity, node);
+    identity
+}
+
 /// Parent of the worst-case node of the `create_node` benchmarks: at
 /// scope-local depth `MAX_SCOPE_DEPTH - 1` with a nearly full `Children`
 /// vector. Returns `(parent, scope)`.
@@ -631,6 +641,117 @@ mod benchmarks {
         }
 
         assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `parent` view: identity
+    /// resolution, the `Nodes` read and the projection of the parent.
+    #[benchmark(extra)]
+    fn address_parent() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, node) = create_chain::<T>(&caller, 2);
+        let parent_identity = bind_view_identity::<T>(root, 0);
+        let identity = bind_view_identity::<T>(node, 1);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::parent(identity), Ok(Some(parent_identity)));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `children` view at the
+    /// maximum child count, with an identity resolved for every child.
+    #[benchmark(extra)]
+    fn address_children_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, _) = create_chain::<T>(&caller, 1);
+        fill_siblings::<T>(&caller, root, MAX_CHILDREN_PER_NODE);
+        let identity = bind_view_identity::<T>(root, 0);
+        for (index, child) in Children::<T>::get(root).into_iter().enumerate() {
+            bind_view_identity::<T>(child, index as u32 + 1);
+        }
+
+        #[block]
+        {
+            assert_eq!(
+                Pallet::<T>::children(identity).map(|children| children.len()),
+                Ok(MAX_CHILDREN_PER_NODE as usize)
+            );
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `meta` view with the
+    /// maximum-size value.
+    #[benchmark(extra)]
+    fn address_meta() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, _) = create_chain::<T>(&caller, 1);
+        Meta::<T>::insert(node, max_meta());
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::meta(identity), Ok(Some(max_meta())));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `payload` view with the
+    /// maximum-size value.
+    #[benchmark(extra)]
+    fn address_payload() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, _) = create_chain::<T>(&caller, 1);
+        Payload::<T>::insert(node, max_payload());
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::payload(identity), Ok(Some(max_payload())));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `scope_of_address` view
+    /// at the maximum Scope depth: the `resolve_scope` walk plus the
+    /// projection of the Scope root.
+    #[benchmark(extra)]
+    fn address_scope_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        let root_identity = bind_view_identity::<T>(root, 0);
+        let identity = bind_view_identity::<T>(node, 1);
+
+        #[block]
+        {
+            assert_eq!(
+                Pallet::<T>::scope_of_address(identity).map(|scope| scope.root),
+                Ok(root_identity)
+            );
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `address_has_capability`
+    /// view at the maximum Access traversal depth: a `GrantMode::Subtree`
+    /// grant at the Scope root, checked at the deepest node.
+    #[benchmark(extra)]
+    fn address_has_capability_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let accessor: T::AccountId = account("accessor", 0, 0);
+        let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(
+                Pallet::<T>::address_has_capability(accessor, identity, Capability::Write),
+                Ok(true)
+            );
+        }
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);

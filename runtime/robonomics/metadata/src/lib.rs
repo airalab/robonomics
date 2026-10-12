@@ -103,6 +103,16 @@ mod tests {
         assert!(names.contains(&"has_capability"), "{names:?}");
         assert!(names.contains(&"identity_of"), "{names:?}");
         assert!(names.contains(&"node_by_identity"), "{names:?}");
+        for name in [
+            "parent",
+            "children",
+            "meta",
+            "payload",
+            "scope_of_address",
+            "address_has_capability",
+        ] {
+            assert!(names.contains(&name), "{name} missing: {names:?}");
+        }
     }
 
     #[test]

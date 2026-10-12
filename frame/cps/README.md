@@ -284,6 +284,38 @@ They are described in runtime metadata V16 and executed through the generic
 Simple stored-state reads (node info, metadata, payload, children) stay plain
 storage queries.
 
+### Address-oriented views
+
+These views let a client work with the tree as if nodes were addressed by
+`AccountId`. They take an identity account, resolve it through `IdentityNode`,
+run on the canonical `NodeId` tree and return only accounts, `ScopeId`,
+`Capability` and stored data; a `NodeId` is never returned. All return
+`Result<_, AddressViewError>`:
+
+- `parent(identity) -> Option<AccountId>` - `None` for a root.
+- `children(identity) -> Vec<AccountId>` - the direct children in creation
+  order, at most `MAX_CHILDREN_PER_NODE`.
+- `meta(identity) -> Option<NodeMeta>` and `payload(identity) ->
+  Option<NodePayload>`.
+- `scope_of_address(identity) -> AddressScope` - `scope_id`, the identity of
+  the Scope `root`, and the `owner`.
+- `address_has_capability(caller, target, capability) -> bool` - the same
+  check as `has_capability`, at the node `target` is the identity of.
+
+The projection is strict. `NodeIdentity` is optional, so a result that has to
+contain a node without identity fails as a whole with
+`MissingProjectedIdentity`; nodes are never silently omitted. For example, if
+Alice has the children Bob, Carol and a node without identity,
+`children(Alice)` fails rather than return `[Bob, Carol]`, which would show a
+different topology. An unlinked input account fails with `IdentityNotFound`.
+Only nodes that appear in the result need an identity: `scope_of_address`
+needs one for the Scope root only, `address_has_capability` for `target` only,
+and nodes in between are not shown.
+
+There is no filtered view ("children with identity only", "nearest identified
+parent") and no recursive subtree view. A client walks the hierarchy one
+bounded call at a time. The views read storage only and add none.
+
 ## Data privacy
 
 All data stored by the pallet is public, including the tree structure, the

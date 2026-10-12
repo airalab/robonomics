@@ -3554,3 +3554,352 @@ mod identity_tests {
         });
     }
 }
+
+/// Tests of the strict address-oriented views.
+mod address_view_tests {
+    use super::*;
+
+    /// Owner of every Scope created by [`setup`].
+    const OWNER: u64 = 1;
+    /// Identities, chosen apart from node ids so that a leaked `NodeId`
+    /// cannot be mistaken for an account.
+    const ALICE: u64 = 10;
+    const BOB: u64 = 11;
+    const CAROL: u64 = 12;
+    const DAVE: u64 = 13;
+    const ERIN: u64 = 14;
+    const STRANGER: u64 = 99;
+
+    /// Build the tree below, rooting Scope 0 at node 0, and bind identities
+    /// to the nodes marked with one. Node 3 and node 4 have no identity.
+    ///
+    /// ```text
+    /// #0 Alice
+    /// |-- #1 Bob
+    /// |   `-- #4 <none>
+    /// |       `-- #5 Dave
+    /// |-- #2 Carol
+    /// `-- #3 <none>
+    /// ```
+    fn setup() {
+        for parent in [None, Some(0), Some(0), Some(0), Some(1), Some(4)] {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                parent.map(NodeId),
+                None,
+                None,
+                None
+            ));
+        }
+        bind(0, ALICE);
+        bind(1, BOB);
+        bind(2, CAROL);
+        bind(5, DAVE);
+    }
+
+    /// Bind `identity` to `node` through a permit for Scope 0.
+    fn bind(node: u64, identity: u64) {
+        let valid_until = 50;
+        assert_ok!(Cps::set_identity(
+            RuntimeOrigin::signed(OWNER),
+            NodeId(node),
+            identity,
+            Some(NodeIdentityPermit {
+                valid_until,
+                signature: TestSignature(
+                    identity,
+                    Cps::identity_permit_payload(ScopeId(0), valid_until)
+                ),
+            }),
+        ));
+    }
+
+    #[test]
+    fn parent_resolves_address_to_address() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::parent(BOB), Ok(Some(ALICE)));
+            assert_eq!(Cps::parent(CAROL), Ok(Some(ALICE)));
+        });
+    }
+
+    #[test]
+    fn parent_of_root_is_none() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::parent(ALICE), Ok(None));
+        });
+    }
+
+    #[test]
+    fn parent_fails_for_unknown_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(
+                Cps::parent(STRANGER),
+                Err(AddressViewError::IdentityNotFound)
+            );
+        });
+    }
+
+    #[test]
+    fn parent_fails_when_parent_has_no_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(
+                Cps::parent(DAVE),
+                Err(AddressViewError::MissingProjectedIdentity)
+            );
+        });
+    }
+
+    #[test]
+    fn children_returns_all_child_identities_in_creation_order() {
+        new_test_ext().execute_with(|| {
+            setup();
+            bind(3, ERIN);
+            assert_eq!(Cps::children(ALICE), Ok(vec![BOB, CAROL, ERIN]));
+        });
+    }
+
+    #[test]
+    fn children_of_leaf_is_empty() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::children(CAROL), Ok(vec![]));
+            assert_eq!(Cps::children(DAVE), Ok(vec![]));
+        });
+    }
+
+    #[test]
+    fn children_fails_for_unknown_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(
+                Cps::children(STRANGER),
+                Err(AddressViewError::IdentityNotFound)
+            );
+        });
+    }
+
+    #[test]
+    fn children_fails_if_any_child_has_no_identity_and_never_filters() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // Node 3 has no identity; a filtering view would return
+            // `[BOB, CAROL]`.
+            assert_eq!(
+                Cps::children(ALICE),
+                Err(AddressViewError::MissingProjectedIdentity)
+            );
+            // The only child, node 4, has no identity.
+            assert_eq!(
+                Cps::children(BOB),
+                Err(AddressViewError::MissingProjectedIdentity)
+            );
+        });
+    }
+
+    #[test]
+    fn meta_and_payload_resolve_through_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::meta(BOB), Ok(None));
+            assert_eq!(Cps::payload(BOB), Ok(None));
+
+            assert_ok!(Cps::set_meta(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                Some(data(b"meta"))
+            ));
+            assert_ok!(Cps::set_payload(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                Some(data(b"payload"))
+            ));
+
+            assert_eq!(Cps::meta(BOB), Ok(Some(data(b"meta"))));
+            assert_eq!(Cps::payload(BOB), Ok(Some(data(b"payload"))));
+            assert_eq!(Cps::meta(CAROL), Ok(None));
+        });
+    }
+
+    #[test]
+    fn meta_and_payload_fail_for_unknown_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(Cps::meta(STRANGER), Err(AddressViewError::IdentityNotFound));
+            assert_eq!(
+                Cps::payload(STRANGER),
+                Err(AddressViewError::IdentityNotFound)
+            );
+        });
+    }
+
+    #[test]
+    fn scope_of_address_returns_scope_id_root_identity_and_owner() {
+        new_test_ext().execute_with(|| {
+            setup();
+            let expected = AddressScope {
+                scope_id: ScopeId(0),
+                root: ALICE,
+                owner: OWNER,
+            };
+            assert_eq!(Cps::scope_of_address(CAROL), Ok(expected.clone()));
+            assert_eq!(Cps::scope_of_address(ALICE), Ok(expected));
+        });
+    }
+
+    #[test]
+    fn scope_of_address_fails_for_unknown_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(
+                Cps::scope_of_address(STRANGER),
+                Err(AddressViewError::IdentityNotFound)
+            );
+        });
+    }
+
+    #[test]
+    fn scope_of_address_fails_if_scope_root_has_no_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // Node 4 has no identity and becomes the root of Scope 1.
+            assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(4)));
+            assert_eq!(
+                Cps::scope_of_address(DAVE),
+                Err(AddressViewError::MissingProjectedIdentity)
+            );
+        });
+    }
+
+    #[test]
+    fn scope_of_address_ignores_unlinked_nodes_between_target_and_root() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // The path of node 5 is `#5, #4, #1`; only the root #1 is shown.
+            assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(1)));
+            assert_eq!(
+                Cps::scope_of_address(DAVE),
+                Ok(AddressScope {
+                    scope_id: ScopeId(1),
+                    root: BOB,
+                    owner: OWNER,
+                })
+            );
+        });
+    }
+
+    #[test]
+    fn address_has_capability_resolves_target_identity_to_node() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(Cps::grant_access(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                STRANGER,
+                Capability::Write,
+                GrantMode::Node,
+            ));
+            for (target, node) in [(ALICE, 0), (BOB, 1), (CAROL, 2), (DAVE, 5)] {
+                for caller in [OWNER, STRANGER, 77] {
+                    for capability in [Capability::Write, Capability::CreateScope] {
+                        assert_eq!(
+                            Cps::address_has_capability(caller, target, capability),
+                            Ok(Cps::has_capability(NodeId(node), caller, capability)),
+                            "target {target}, caller {caller}, {capability:?}"
+                        );
+                    }
+                }
+            }
+            assert_eq!(
+                Cps::address_has_capability(STRANGER, BOB, Capability::Write),
+                Ok(true)
+            );
+            assert_eq!(
+                Cps::address_has_capability(STRANGER, CAROL, Capability::Write),
+                Ok(false)
+            );
+        });
+    }
+
+    #[test]
+    fn address_has_capability_works_when_ancestors_have_no_identity() {
+        new_test_ext().execute_with(|| {
+            setup();
+            // The grant at #1 reaches Dave (#5) through unlinked #4.
+            assert_ok!(Cps::grant_access(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                STRANGER,
+                Capability::Write,
+                GrantMode::Subtree,
+            ));
+            assert_eq!(
+                Cps::address_has_capability(STRANGER, DAVE, Capability::Write),
+                Ok(true)
+            );
+        });
+    }
+
+    #[test]
+    fn address_has_capability_fails_for_unknown_target() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_eq!(
+                Cps::address_has_capability(OWNER, STRANGER, Capability::Write),
+                Err(AddressViewError::IdentityNotFound)
+            );
+        });
+    }
+
+    #[test]
+    fn address_views_are_dispatched_with_addresses_only() {
+        new_test_ext().execute_with(|| {
+            setup();
+            bind(3, ERIN);
+            let root_before = sp_io::storage::root(sp_runtime::StateVersion::V1);
+
+            let parent: Result<Option<u64>, AddressViewError> =
+                dispatch_view_function(pallet::ParentViewFunction::<Runtime>::new(BOB));
+            assert_eq!(parent, Ok(Some(ALICE)));
+
+            let children: Result<Vec<u64>, AddressViewError> =
+                dispatch_view_function(pallet::ChildrenViewFunction::<Runtime>::new(ALICE));
+            assert_eq!(children, Ok(vec![BOB, CAROL, ERIN]));
+
+            let meta: Result<Option<NodeMeta>, AddressViewError> =
+                dispatch_view_function(pallet::MetaViewFunction::<Runtime>::new(BOB));
+            assert_eq!(meta, Ok(None));
+
+            let payload: Result<Option<NodePayload>, AddressViewError> =
+                dispatch_view_function(pallet::PayloadViewFunction::<Runtime>::new(BOB));
+            assert_eq!(payload, Ok(None));
+
+            let scope: Result<AddressScope<u64>, AddressViewError> =
+                dispatch_view_function(pallet::ScopeOfAddressViewFunction::<Runtime>::new(CAROL));
+            assert_eq!(
+                scope,
+                Ok(AddressScope {
+                    scope_id: ScopeId(0),
+                    root: ALICE,
+                    owner: OWNER,
+                })
+            );
+
+            let allowed: Result<bool, AddressViewError> =
+                dispatch_view_function(pallet::AddressHasCapabilityViewFunction::<Runtime>::new(
+                    OWNER,
+                    CAROL,
+                    Capability::Write,
+                ));
+            assert_eq!(allowed, Ok(true));
+
+            assert_eq!(
+                root_before,
+                sp_io::storage::root(sp_runtime::StateVersion::V1)
+            );
+        });
+    }
+}

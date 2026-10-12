@@ -247,5 +247,27 @@ mod tests {
             .node_by_identity(subxt::utils::AccountId32([0u8; 32]));
         assert_eq!(node_by_identity.function_name(), "node_by_identity");
         assert!(node_by_identity.validation_hash().is_some());
+
+        let account = || subxt::utils::AccountId32([0u8; 32]);
+        let views = api::view_functions().cps();
+        for (name, validation_hash) in [
+            ("parent", views.parent(account()).validation_hash()),
+            ("children", views.children(account()).validation_hash()),
+            ("meta", views.meta(account()).validation_hash()),
+            ("payload", views.payload(account()).validation_hash()),
+            (
+                "scope_of_address",
+                views.scope_of_address(account()).validation_hash(),
+            ),
+            (
+                "address_has_capability",
+                views
+                    .address_has_capability(account(), account(), Capability::Write)
+                    .validation_hash(),
+            ),
+        ] {
+            assert!(validation_hash.is_some(), "{name} has a validation hash");
+        }
+        assert_eq!(views.parent(account()).function_name(), "parent");
     }
 }
