@@ -627,6 +627,7 @@ impl pallet_robonomics_liability::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_liability::WeightInfo<Runtime>;
 }
 
+#[cfg(feature = "dev-runtime")]
 impl pallet_sudo::Config for Runtime {
     type RuntimeCall = RuntimeCall;
     type RuntimeEvent = RuntimeEvent;
@@ -777,9 +778,7 @@ mod runtime {
     #[runtime::pallet_index(96)]
     pub type TechnicalCommittee = pallet_collective<Instance1>;
 
-    // TODO: remove Sudo once the Stage B OpenGov handover (issue #629) has
-    // executed a successful referendum removing it. Kept temporarily as a
-    // recovery mechanism during Stage A bootstrap.
+    #[cfg(feature = "dev-runtime")]
     #[runtime::pallet_index(99)]
     pub type Sudo = pallet_sudo;
 }
@@ -827,7 +826,6 @@ pub type Executive = frame_executive::Executive<
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
-    pallet_robonomics_cps::migration::MigrationToV2<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
