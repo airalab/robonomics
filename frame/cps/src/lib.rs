@@ -1054,7 +1054,7 @@ pub mod pallet {
 
                 // A delegated identity needs a permit for the Scope the new
                 // node will resolve to, which is the parent's Scope.
-if let Some(assignment) = &identity {
+                if let Some(assignment) = &identity {
                     ensure!(
                         !<IdentityNode<T>>::contains_key(&assignment.identity),
                         Error::<T>::IdentityAlreadyInUse

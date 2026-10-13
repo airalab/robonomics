@@ -27,7 +27,7 @@ fn main() {
 
 #[cfg(all(feature = "metadata-hash", feature = "std"))]
 fn main() {
-substrate_wasm_builder::WasmBuilder::init_with_defaults()
+    substrate_wasm_builder::WasmBuilder::init_with_defaults()
         .enable_metadata_hash("XRT", 9)
         .build();
 
