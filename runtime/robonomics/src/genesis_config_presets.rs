@@ -36,7 +36,8 @@ fn robonomics_genesis(
     parachain_id: ParaId,
     relay_network: NetworkId,
 ) -> serde_json::Value {
-    build_struct_json_patch!(RuntimeGenesisConfig {
+    #[allow(unused_mut)]
+    let mut patch = build_struct_json_patch!(RuntimeGenesisConfig {
         balances: BalancesConfig {
             balances: endowed_accounts
                 .iter()
@@ -67,7 +68,18 @@ fn robonomics_genesis(
         xcm_pallet: XcmPalletConfig {
             safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
         },
-    })
+    });
+
+    // `pallet_sudo` exists only in dev-runtime builds; make Alice the sudo account there.
+    #[cfg(feature = "dev-runtime")]
+    if let Some(config) = patch.as_object_mut() {
+        config.insert(
+            "sudo".into(),
+            serde_json::json!({ "key": Sr25519Keyring::Alice.to_account_id() }),
+        );
+    }
+
+    patch
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.

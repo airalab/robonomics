@@ -80,12 +80,12 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
-    authoring_version: 1,
-    spec_version: 53,
+    spec_version: 52,
     impl_version: 1,
-    apis: RUNTIME_API_VERSIONS,
-    transaction_version: 4,
     system_version: 1,
+    authoring_version: 1,
+    transaction_version: 4,
+    apis: RUNTIME_API_VERSIONS,
 };
 
 impl_opaque_keys! {
