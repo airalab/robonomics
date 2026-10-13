@@ -445,77 +445,86 @@ mod benchmarks {
         assert!(!IdentityNode::<T>::contains_key(&caller));
     }
 
-    /// `create_node` at its worst-case position without metadata or payload,
-    /// with the caller as identity. Its weight is added to that of
-    /// `create_node`, so the node itself is counted twice.
+    /// The incremental identity work for `create_node` with the caller as
+    /// identity. Node creation and its scope checks are covered by
+    /// `create_node`.
     #[benchmark]
     fn create_node_identity_self() {
         let caller: T::AccountId = whitelisted_caller();
-        let (parent, _) = create_node_parent::<T>(&caller);
-        let node = NextNodeId::<T>::get();
+        let (node, scope) = create_node_parent::<T>(&caller);
         let assignment = NodeIdentityAssignment {
             identity: caller.clone(),
             permit: None,
         };
 
-        #[extrinsic_call]
-        create_node(
-            RawOrigin::Signed(caller.clone()),
-            Some(parent),
-            None,
-            None,
-            Some(assignment),
-        );
+        #[block]
+        {
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::ensure_identity_assignable(
+                &caller,
+                scope,
+                &assignment
+            ));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
 
         assert_eq!(NodeIdentity::<T>::get(node), Some(caller.clone()));
         assert_eq!(IdentityNode::<T>::get(&caller), Some(node));
     }
 
     /// Like `create_node_identity_self`, with a permit whose signature is
-    /// verified.
+    /// verified. Measures only the incremental identity work.
     #[benchmark]
     fn create_node_identity_delegated() {
         let caller: T::AccountId = whitelisted_caller();
-        let (parent, scope) = create_node_parent::<T>(&caller);
-        let node = NextNodeId::<T>::get();
+        let (node, scope) = create_node_parent::<T>(&caller);
         let (identity, permit) = signed_permit::<T>(scope);
         let assignment = NodeIdentityAssignment {
             identity: identity.clone(),
             permit: Some(permit),
         };
 
-        #[extrinsic_call]
-        create_node(
-            RawOrigin::Signed(caller),
-            Some(parent),
-            None,
-            None,
-            Some(assignment),
-        );
+        #[block]
+        {
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::ensure_identity_assignable(
+                &caller,
+                scope,
+                &assignment
+            ));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
 
         assert_eq!(NodeIdentity::<T>::get(node), Some(identity.clone()));
         assert_eq!(IdentityNode::<T>::get(&identity), Some(node));
     }
 
-    /// Creating a root node, which also creates its Scope, with the caller
-    /// as identity. Added to the weight of `create_node`.
+    /// The incremental identity work for creating a root node with the caller
+    /// as identity. Root and Scope creation are covered by `create_node`.
     #[benchmark]
     fn create_root_identity_self() {
         let caller: T::AccountId = whitelisted_caller();
-        let node = NextNodeId::<T>::get();
-        let assignment = NodeIdentityAssignment {
+        let (_, node) = create_chain::<T>(&caller, 1);
+        let assignment: AssignmentOf<T> = NodeIdentityAssignment {
             identity: caller.clone(),
             permit: None,
         };
 
-        #[extrinsic_call]
-        create_node(
-            RawOrigin::Signed(caller.clone()),
-            None,
-            None,
-            None,
-            Some(assignment),
-        );
+        #[block]
+        {
+            assert_eq!(assignment.identity, caller);
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
 
         assert_eq!(NodeIdentity::<T>::get(node), Some(caller.clone()));
         assert_eq!(IdentityNode::<T>::get(&caller), Some(node));
