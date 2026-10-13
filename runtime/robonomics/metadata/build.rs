@@ -125,7 +125,7 @@ fn main() {
 
     // Step 1: Get Robonomics runtime WASM code from the runtime crate dependency.
     // The runtime must be built first for this to work.
-    let wasm = robonomics_runtime::dev::WASM_BINARY.expect("WASM_BINARY is not available");
+    let wasm = robonomics_runtime::WASM_BINARY.expect("WASM_BINARY is not available");
 
     // Step 2: Decompress the WASM if it's compressed.
     // Runtime WASM may be compressed to reduce size. We need the raw WASM for execution.

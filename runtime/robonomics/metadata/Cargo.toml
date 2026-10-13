@@ -42,3 +42,5 @@ build-metadata = [
   "parity-scale-codec",
 ]
 check-metadata = ["build-metadata", "seahash"]
+# Build metadata for development runtime (have sudo, different constants, etc)
+dev-runtime = ["robonomics-runtime?/dev-runtime"]
