@@ -21,8 +21,9 @@
 
 use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_ok, traits::Get, BoundedVec};
 use frame_system::RawOrigin;
+use sp_runtime::Saturating;
 use sp_std::vec;
 
 /// Build a chain of `len` nodes (a root plus `len - 1` descendants), all
@@ -44,6 +45,7 @@ fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) 
             parent,
             None,
             None,
+            None
         ));
         if root.is_none() {
             root = Some(id);
@@ -82,6 +84,7 @@ fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
             Some(parent),
             None,
             None,
+            None
         ));
     }
 }
@@ -117,6 +120,51 @@ fn fill_access<T: Config>(caller: &T::AccountId, node: NodeId, count: u32) {
     );
 }
 
+/// A fresh identity with a permit for `scope`, valid for the longest TTL.
+fn signed_permit<T: Config>(scope: ScopeId) -> (T::AccountId, PermitOf<T>) {
+    let valid_until =
+        frame_system::Pallet::<T>::block_number().saturating_add(T::MaxIdentityPermitTtl::get());
+    let payload = Pallet::<T>::identity_permit_payload(scope, valid_until);
+    let (identity, signature) = T::BenchmarkHelper::identity_with_signature(&payload);
+    (
+        identity,
+        NodeIdentityPermit {
+            valid_until,
+            signature,
+        },
+    )
+}
+
+/// Bind a placeholder identity to `node`, so that `set_identity` has to
+/// replace it and remove its reverse mapping.
+fn bind_placeholder_identity<T: Config>(node: NodeId) {
+    let previous: T::AccountId = account("previous_identity", 0, 0);
+    NodeIdentity::<T>::insert(node, &previous);
+    IdentityNode::<T>::insert(&previous, node);
+}
+
+/// Bind the identity `account("view_identity", index, 0)` to `node`, writing
+/// both identity mappings directly, and return it. Used by the benchmarks of
+/// the address-oriented views, which only read the mappings.
+fn bind_view_identity<T: Config>(node: NodeId, index: u32) -> T::AccountId {
+    let identity: T::AccountId = account("view_identity", index, 0);
+    NodeIdentity::<T>::insert(node, &identity);
+    IdentityNode::<T>::insert(&identity, node);
+    identity
+}
+
+/// Parent of the worst-case node of the `create_node` benchmarks: at
+/// scope-local depth `MAX_SCOPE_DEPTH - 1` with a nearly full `Children`
+/// vector. Returns `(parent, scope)`.
+fn create_node_parent<T: Config>(caller: &T::AccountId) -> (NodeId, ScopeId) {
+    let (_, parent) = create_chain::<T>(caller, MAX_SCOPE_DEPTH - 1);
+    fill_siblings::<T>(caller, parent, MAX_CHILDREN_PER_NODE - 1);
+    let scope = Pallet::<T>::resolve_scope(parent)
+        .expect("parent resolves to a Scope")
+        .id;
+    (parent, scope)
+}
+
 #[benchmarks]
 mod benchmarks {
     use super::*;
@@ -148,6 +196,7 @@ mod benchmarks {
             Some(parent),
             meta.clone(),
             payload.clone(),
+            None,
         );
 
         assert_eq!(
@@ -254,6 +303,7 @@ mod benchmarks {
             Some(parent),
             Some(max_meta()),
             Some(max_payload()),
+            None
         ));
         assert_eq!(
             Children::<T>::get(parent).len(),
@@ -264,10 +314,18 @@ mod benchmarks {
             node,
         ));
         fill_access::<T>(&caller, node, a);
+        assert_ok!(Pallet::<T>::set_identity(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            caller.clone(),
+            None
+        ));
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), node);
+        _(RawOrigin::Signed(caller.clone()), node);
 
+        assert!(!NodeIdentity::<T>::contains_key(node));
+        assert!(!IdentityNode::<T>::contains_key(&caller));
         assert!(!Nodes::<T>::contains_key(node));
         assert!(!Meta::<T>::contains_key(node));
         assert!(!Payload::<T>::contains_key(node));
@@ -322,6 +380,154 @@ mod benchmarks {
                 .map(|info| info.owner),
             Some(caller)
         );
+    }
+
+    /// Worst case: `node` is at `MAX_SCOPE_DEPTH` and already has an
+    /// identity, so its reverse mapping is replaced. The identity is the
+    /// caller, so no signature is verified.
+    #[benchmark]
+    fn set_identity_self() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        bind_placeholder_identity::<T>(node);
+
+        #[extrinsic_call]
+        set_identity(
+            RawOrigin::Signed(caller.clone()),
+            node,
+            caller.clone(),
+            None,
+        );
+
+        assert_eq!(NodeIdentity::<T>::get(node), Some(caller.clone()));
+        assert_eq!(IdentityNode::<T>::get(&caller), Some(node));
+    }
+
+    /// Like `set_identity_self`, with a permit of another account whose
+    /// signature is verified.
+    #[benchmark]
+    fn set_identity_delegated() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        let scope = Pallet::<T>::resolve_scope(node).expect("node resolves").id;
+        bind_placeholder_identity::<T>(node);
+        let (identity, permit) = signed_permit::<T>(scope);
+
+        #[extrinsic_call]
+        set_identity(
+            RawOrigin::Signed(caller),
+            node,
+            identity.clone(),
+            Some(permit),
+        );
+
+        assert_eq!(NodeIdentity::<T>::get(node), Some(identity.clone()));
+        assert_eq!(IdentityNode::<T>::get(&identity), Some(node));
+    }
+
+    /// Worst case: `node` is at `MAX_SCOPE_DEPTH`, so the Scope walk visits
+    /// the full path.
+    #[benchmark]
+    fn clear_identity() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        assert_ok!(Pallet::<T>::set_identity(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            caller.clone(),
+            None
+        ));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller.clone()), node);
+
+        assert!(!NodeIdentity::<T>::contains_key(node));
+        assert!(!IdentityNode::<T>::contains_key(&caller));
+    }
+
+    /// The incremental identity work for `create_node` with the caller as
+    /// identity. Node creation and its scope checks are covered by
+    /// `create_node`.
+    #[benchmark]
+    fn create_node_identity_self() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, scope) = create_node_parent::<T>(&caller);
+        let assignment = NodeIdentityAssignment {
+            identity: caller.clone(),
+            permit: None,
+        };
+
+        #[block]
+        {
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::ensure_identity_assignable(
+                &caller,
+                scope,
+                &assignment
+            ));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
+
+        assert_eq!(NodeIdentity::<T>::get(node), Some(caller.clone()));
+        assert_eq!(IdentityNode::<T>::get(&caller), Some(node));
+    }
+
+    /// Like `create_node_identity_self`, with a permit whose signature is
+    /// verified. Measures only the incremental identity work.
+    #[benchmark]
+    fn create_node_identity_delegated() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, scope) = create_node_parent::<T>(&caller);
+        let (identity, permit) = signed_permit::<T>(scope);
+        let assignment = NodeIdentityAssignment {
+            identity: identity.clone(),
+            permit: Some(permit),
+        };
+
+        #[block]
+        {
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::ensure_identity_assignable(
+                &caller,
+                scope,
+                &assignment
+            ));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
+
+        assert_eq!(NodeIdentity::<T>::get(node), Some(identity.clone()));
+        assert_eq!(IdentityNode::<T>::get(&identity), Some(node));
+    }
+
+    /// The incremental identity work for creating a root node with the caller
+    /// as identity. Root and Scope creation are covered by `create_node`.
+    #[benchmark]
+    fn create_root_identity_self() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, 1);
+        let assignment: AssignmentOf<T> = NodeIdentityAssignment {
+            identity: caller.clone(),
+            permit: None,
+        };
+
+        #[block]
+        {
+            assert_eq!(assignment.identity, caller);
+            assert!(!IdentityNode::<T>::contains_key(&assignment.identity));
+            assert_ok!(Pallet::<T>::bind_identity(
+                node,
+                assignment.identity.clone()
+            ));
+        }
+
+        assert_eq!(NodeIdentity::<T>::get(node), Some(caller.clone()));
+        assert_eq!(IdentityNode::<T>::get(&caller), Some(node));
     }
 
     /// Worst case: `node` is at `MAX_SCOPE_DEPTH`, exercising the full
@@ -444,6 +650,115 @@ mod benchmarks {
         }
 
         assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `parent` view: identity
+    /// resolution, the `Nodes` read and the projection of the parent.
+    #[benchmark(extra)]
+    fn address_parent() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, node) = create_chain::<T>(&caller, 2);
+        let parent_identity = bind_view_identity::<T>(root, 0);
+        let identity = bind_view_identity::<T>(node, 1);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::parent(identity), Ok(Some(parent_identity)));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `children` view at the
+    /// maximum child count, with an identity resolved for every child.
+    #[benchmark(extra)]
+    fn address_children_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, _) = create_chain::<T>(&caller, 1);
+        fill_siblings::<T>(&caller, root, MAX_CHILDREN_PER_NODE);
+        let identity = bind_view_identity::<T>(root, 0);
+        for (index, child) in Children::<T>::get(root).into_iter().enumerate() {
+            bind_view_identity::<T>(child, index as u32 + 1);
+        }
+
+        #[block]
+        {
+            assert_eq!(
+                Pallet::<T>::children(identity).map(|children| children.len()),
+                Ok(MAX_CHILDREN_PER_NODE as usize)
+            );
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `meta` view with the
+    /// maximum-size value.
+    #[benchmark(extra)]
+    fn address_meta() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, _) = create_chain::<T>(&caller, 1);
+        Meta::<T>::insert(node, max_meta());
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::meta(identity), Ok(Some(max_meta())));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `payload` view with the
+    /// maximum-size value.
+    #[benchmark(extra)]
+    fn address_payload() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (node, _) = create_chain::<T>(&caller, 1);
+        Payload::<T>::insert(node, max_payload());
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::payload(identity), Ok(Some(max_payload())));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `scope_of` view at the
+    /// maximum Scope depth: the `resolve_scope` walk.
+    #[benchmark(extra)]
+    fn address_scope_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        let identity = bind_view_identity::<T>(node, 0);
+        let expected = Pallet::<T>::resolve_scope(root)
+            .expect("the chain root resolves")
+            .id;
+
+        #[block]
+        {
+            assert_eq!(Pallet::<T>::scope_of(identity), Ok(expected));
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark of the `address_capability`
+    /// view at the maximum Access traversal depth: a `GrantMode::Subtree`
+    /// grant at the Scope root, checked at the deepest node.
+    #[benchmark(extra)]
+    fn address_capability_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let accessor: T::AccountId = account("accessor", 0, 0);
+        let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+        let identity = bind_view_identity::<T>(node, 0);
+
+        #[block]
+        {
+            assert_eq!(
+                Pallet::<T>::address_capability(accessor, identity, Capability::Write),
+                Ok(true)
+            );
+        }
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);

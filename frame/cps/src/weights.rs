@@ -41,6 +41,24 @@ pub trait WeightInfo {
     fn grant_access() -> Weight;
     /// `revoke_access`.
     fn revoke_access() -> Weight;
+    /// `set_identity` where the identity is the caller (no signature
+    /// check), replacing an existing identity of the node.
+    fn set_identity_self() -> Weight;
+    /// `set_identity` with a permit, including signature verification and
+    /// replacing an existing identity of the node.
+    fn set_identity_delegated() -> Weight;
+    /// `clear_identity`.
+    fn clear_identity() -> Weight;
+    /// Identity part of `create_node` for a child node whose identity is the
+    /// caller. Added to the weight of `create_node`.
+    fn create_node_identity_self() -> Weight;
+    /// Identity part of `create_node` for a child node with a delegated
+    /// identity, including signature verification. Added to the weight of
+    /// `create_node`.
+    fn create_node_identity_delegated() -> Weight;
+    /// Identity part of `create_node` for a root node whose identity is the
+    /// caller. Added to the weight of `create_node`.
+    fn create_root_identity_self() -> Weight;
 }
 
 /// Zero weight for every call. For tests only.
@@ -65,6 +83,24 @@ impl WeightInfo for TestWeightInfo {
         Weight::zero()
     }
     fn revoke_access() -> Weight {
+        Weight::zero()
+    }
+    fn set_identity_self() -> Weight {
+        Weight::zero()
+    }
+    fn set_identity_delegated() -> Weight {
+        Weight::zero()
+    }
+    fn clear_identity() -> Weight {
+        Weight::zero()
+    }
+    fn create_node_identity_self() -> Weight {
+        Weight::zero()
+    }
+    fn create_node_identity_delegated() -> Weight {
+        Weight::zero()
+    }
+    fn create_root_identity_self() -> Weight {
         Weight::zero()
     }
 }

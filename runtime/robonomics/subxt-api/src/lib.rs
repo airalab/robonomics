@@ -19,7 +19,7 @@
 //!
 //! This crate provides a type-safe, compile-time verified API for interacting with the
 //! Robonomics blockchain runtime. It uses [subxt](https://docs.rs/subxt) to generate type-safe
-//! transaction and storage APIs.
+//! transaction, storage and view-function APIs from the V16 runtime metadata.
 //!
 //! ## Quick Start
 //!
@@ -45,6 +45,7 @@
 //! - **Transactions**: `api::tx().pallet_name().call_name(...)`
 //! - **Storage**: `api::storage().pallet_name().storage_name(...)`
 //! - **Constants**: `api::constants().pallet_name().constant_name()`
+//! - **View functions**: `api::view_functions().pallet_name().function_name(...)`
 //! - **Events**: `api::pallet_name::events::EventName { ... }`
 //!
 //! ### Example: Submit Transaction
@@ -212,3 +213,58 @@ impl subxt::Config for RobonomicsConfig {
     derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode"
 )]
 pub mod api {}
+
+#[cfg(test)]
+mod tests {
+    use super::api;
+    use api::runtime_types::pallet_robonomics_cps::{Capability, NodeId};
+    use subxt::view_functions::Payload;
+
+    /// The CPS view functions are generated from the V16 metadata, with
+    /// validation hashes and without handwritten ids.
+    #[test]
+    fn cps_view_functions_are_generated() {
+        let resolve_scope = api::view_functions().cps().resolve_scope(NodeId(0));
+        assert_eq!(resolve_scope.pallet_name(), "CPS");
+        assert_eq!(resolve_scope.function_name(), "resolve_scope");
+        assert!(resolve_scope.validation_hash().is_some());
+
+        let has_capability = api::view_functions().cps().has_capability(
+            NodeId(0),
+            subxt::utils::AccountId32([0u8; 32]),
+            Capability::Write,
+        );
+        assert_eq!(has_capability.pallet_name(), "CPS");
+        assert_eq!(has_capability.function_name(), "has_capability");
+        assert!(has_capability.validation_hash().is_some());
+
+        let identity_of = api::view_functions().cps().identity_of(NodeId(0));
+        assert_eq!(identity_of.function_name(), "identity_of");
+        assert!(identity_of.validation_hash().is_some());
+
+        let node_by_identity = api::view_functions()
+            .cps()
+            .node_by_identity(subxt::utils::AccountId32([0u8; 32]));
+        assert_eq!(node_by_identity.function_name(), "node_by_identity");
+        assert!(node_by_identity.validation_hash().is_some());
+
+        let account = || subxt::utils::AccountId32([0u8; 32]);
+        let views = api::view_functions().cps();
+        for (name, validation_hash) in [
+            ("parent", views.parent(account()).validation_hash()),
+            ("children", views.children(account()).validation_hash()),
+            ("meta", views.meta(account()).validation_hash()),
+            ("payload", views.payload(account()).validation_hash()),
+            ("scope_of", views.scope_of(account()).validation_hash()),
+            (
+                "address_capability",
+                views
+                    .address_capability(account(), account(), Capability::Write)
+                    .validation_hash(),
+            ),
+        ] {
+            assert!(validation_hash.is_some(), "{name} has a validation hash");
+        }
+        assert_eq!(views.parent(account()).function_name(), "parent");
+    }
+}

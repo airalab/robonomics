@@ -174,3 +174,90 @@ fn location_conversion_works() {
         assert_eq!(got, expected, "{}", tc.description);
     }
 }
+
+mod cps_view_functions {
+    use frame_support::view_functions::{ViewFunction, ViewFunctionDispatchError, ViewFunctionId};
+    use pallet_robonomics_cps::{
+        pallet::{
+            HasCapabilityViewFunction, IdentityOfViewFunction, NodeByIdentityViewFunction,
+            ResolveScopeViewFunction,
+        },
+        Capability, Error, IdentityNode, NodeId, NodeIdentity, ResolvedScope,
+    };
+    use parity_scale_codec::{Decode, Encode};
+    use robonomics_runtime::{AccountId, Runtime};
+
+    #[test]
+    fn runtime_executes_cps_view_functions() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let call = ResolveScopeViewFunction::<Runtime>::new(NodeId(0));
+            let output = Runtime::execute_view_function(
+                ResolveScopeViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            let result =
+                Result::<ResolvedScope<AccountId>, Error<Runtime>>::decode(&mut &output[..])
+                    .expect("output decodes");
+            assert_eq!(result, Err(Error::<Runtime>::NodeNotFound));
+
+            let call = HasCapabilityViewFunction::<Runtime>::new(
+                NodeId(0),
+                AccountId::from([1u8; 32]),
+                Capability::Write,
+            );
+            let output = Runtime::execute_view_function(
+                HasCapabilityViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            let result =
+                Result::<bool, Error<Runtime>>::decode(&mut &output[..]).expect("output decodes");
+            assert_eq!(result, Err(Error::<Runtime>::NodeNotFound));
+        });
+    }
+
+    #[test]
+    fn runtime_executes_cps_identity_view_functions() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let account = AccountId::from([1u8; 32]);
+            let node = NodeId(7);
+            NodeIdentity::<Runtime>::insert(node, &account);
+            IdentityNode::<Runtime>::insert(&account, node);
+
+            let call = IdentityOfViewFunction::<Runtime>::new(node);
+            let output = Runtime::execute_view_function(
+                IdentityOfViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            assert_eq!(
+                Option::<AccountId>::decode(&mut &output[..]).expect("output decodes"),
+                Some(account.clone())
+            );
+
+            let call = NodeByIdentityViewFunction::<Runtime>::new(account);
+            let output = Runtime::execute_view_function(
+                NodeByIdentityViewFunction::<Runtime>::id(),
+                call.encode(),
+            )
+            .expect("view function is dispatched by the runtime");
+            assert_eq!(
+                Option::<NodeId>::decode(&mut &output[..]).expect("output decodes"),
+                Some(node)
+            );
+        });
+    }
+
+    #[test]
+    fn runtime_rejects_unknown_view_function() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let mut id: ViewFunctionId = ResolveScopeViewFunction::<Runtime>::id();
+            id.suffix = [0xff; 16];
+            assert!(matches!(
+                Runtime::execute_view_function(id, Vec::new()),
+                Err(ViewFunctionDispatchError::NotFound(_))
+            ));
+        });
+    }
+}

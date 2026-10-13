@@ -27,6 +27,10 @@ parity-scale-codec.optional = true
 seahash.workspace = true
 seahash.optional = true
 
+[dev-dependencies]
+frame-metadata = { workspace = true, features = ["std", "unstable"] }
+parity-scale-codec.workspace = true
+
 [features]
 build-metadata = [
   "robonomics-runtime",
@@ -38,3 +42,5 @@ build-metadata = [
   "parity-scale-codec",
 ]
 check-metadata = ["build-metadata", "seahash"]
+# Build metadata for development runtime (have sudo, different constants, etc)
+dev-runtime = ["robonomics-runtime?/dev-runtime"]

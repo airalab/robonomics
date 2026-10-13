@@ -24,12 +24,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// Make development WASM binary available in dedicated module.
-#[cfg(feature = "std")]
-pub mod dev {
-    include!(concat!(env!("OUT_DIR"), "/development_runtime.rs"));
-}
-
 extern crate alloc;
 
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
@@ -61,9 +55,6 @@ use sp_runtime::{
     BoundedVec, FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
-
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 mod genesis_config_presets;
@@ -83,22 +74,13 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
-    authoring_version: 1,
     spec_version: 52,
     impl_version: 1,
-    apis: RUNTIME_API_VERSIONS,
-    transaction_version: 4,
     system_version: 1,
+    authoring_version: 1,
+    transaction_version: 4,
+    apis: RUNTIME_API_VERSIONS,
 };
-
-/// The version infromation used to identify this runtime when compiled natively.
-#[cfg(feature = "std")]
-pub fn native_version() -> NativeVersion {
-    NativeVersion {
-        runtime_version: VERSION,
-        can_author_with: Default::default(),
-    }
-}
 
 impl_opaque_keys! {
     pub struct SessionKeys {
@@ -573,9 +555,36 @@ impl pallet_robonomics_rws::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_rws::WeightInfo<Runtime>;
 }
 
+/// Identity permits for CPS nodes are valid for at most one day.
+const MAX_CPS_IDENTITY_PERMIT_TTL: BlockNumber = DAYS;
+
+/// Signs CPS identity permits with sr25519 keys held by the benchmark
+/// keystore.
+#[cfg(feature = "runtime-benchmarks")]
+pub struct CpsBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_robonomics_cps::BenchmarkHelper<AccountId, Signature> for CpsBenchmarkHelper {
+    fn identity_with_signature(payload: &[u8]) -> (AccountId, Signature) {
+        use sp_runtime::traits::IdentifyAccount;
+
+        let public = sp_io::crypto::sr25519_generate(0.into(), None);
+        let signature = sp_io::crypto::sr25519_sign(0.into(), &public, payload)
+            .expect("the generated key is in the keystore");
+        (
+            sp_runtime::MultiSigner::from(public).into_account(),
+            signature.into(),
+        )
+    }
+}
+
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
+    type Signature = Signature;
+    type MaxIdentityPermitTtl = ConstU32<MAX_CPS_IDENTITY_PERMIT_TTL>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = CpsBenchmarkHelper;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
@@ -600,6 +609,7 @@ impl pallet_robonomics_liability::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_liability::WeightInfo<Runtime>;
 }
 
+#[cfg(feature = "dev-runtime")]
 impl pallet_sudo::Config for Runtime {
     type RuntimeCall = RuntimeCall;
     type RuntimeEvent = RuntimeEvent;
@@ -750,9 +760,7 @@ mod runtime {
     #[runtime::pallet_index(96)]
     pub type TechnicalCommittee = pallet_collective<Instance1>;
 
-    // TODO: remove Sudo once the Stage B OpenGov handover (issue #629) has
-    // executed a successful referendum removing it. Kept temporarily as a
-    // recovery mechanism during Stage A bootstrap.
+    #[cfg(feature = "dev-runtime")]
     #[runtime::pallet_index(99)]
     pub type Sudo = pallet_sudo;
 }
@@ -800,7 +808,6 @@ pub type Executive = frame_executive::Executive<
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
-    pallet_robonomics_cps::migration::MigrationToV2<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
@@ -877,25 +884,18 @@ impl_runtime_apis! {
         }
     }
 
-    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
-        fn account_nonce(account: AccountId) -> Nonce {
-            System::account_nonce(account)
+    impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
+        fn execute_view_function(
+            id: frame_support::view_functions::ViewFunctionId,
+            input: Vec<u8>,
+        ) -> Result<Vec<u8>, frame_support::view_functions::ViewFunctionDispatchError> {
+            Runtime::execute_view_function(id, input)
         }
     }
 
-    impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
-        fn resolve_scope(
-            node: pallet_robonomics_cps::NodeId,
-        ) -> Option<pallet_robonomics_cps::ResolvedScope<AccountId>> {
-            CPS::resolve_scope(node).ok()
-        }
-
-        fn has_capability(
-            node_id: pallet_robonomics_cps::NodeId,
-            account_id: AccountId,
-            capability: pallet_robonomics_cps::Capability,
-        ) -> bool {
-            CPS::has_capability(node_id, &account_id, capability)
+    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+        fn account_nonce(account: AccountId) -> Nonce {
+            System::account_nonce(account)
         }
     }
 

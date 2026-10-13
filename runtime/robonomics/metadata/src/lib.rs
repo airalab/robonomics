@@ -36,6 +36,15 @@
 //!   is compared against the committed `metadata.scale`. The build fails if
 //!   they differ, protecting against stale prebuilt metadata.
 //!
+//! ## Metadata Version
+//!
+//! The metadata is always V16, requested explicitly from the runtime by the
+//! build script (the build fails if the runtime does not support it). V16
+//! describes pallet view functions, which downstream generators rely on:
+//! V14 and V15 carry none, so subxt would generate no typed view functions
+//! from them. V16 is also the highest version both the Polkadot SDK
+//! (`sp-metadata-ir`: V14-V16) and subxt 0.51 (V14-V16) support.
+//!
 //! ## Usage
 //!
 //! ```no_run
@@ -53,3 +62,65 @@
 /// - Freshly extracted runtime metadata when the `build-metadata` (or
 ///   `check-metadata`) feature is enabled.
 pub static METADATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/metadata.scale"));
+
+#[cfg(test)]
+mod tests {
+    use super::METADATA;
+    use frame_metadata::{RuntimeMetadata, RuntimeMetadataPrefixed};
+    use parity_scale_codec::Decode;
+
+    fn decode_v16() -> frame_metadata::v16::RuntimeMetadataV16 {
+        match RuntimeMetadataPrefixed::decode(&mut &METADATA[..])
+            .expect("metadata decodes")
+            .1
+        {
+            RuntimeMetadata::V16(metadata) => metadata,
+            other => panic!("expected metadata V16, got V{}", other.version()),
+        }
+    }
+
+    #[test]
+    fn metadata_is_v16() {
+        assert_eq!(METADATA[4], 16);
+        decode_v16();
+    }
+
+    #[test]
+    fn metadata_describes_cps_view_functions() {
+        let metadata = decode_v16();
+        let cps = metadata
+            .pallets
+            .iter()
+            .find(|pallet| pallet.name == "CPS")
+            .expect("CPS pallet is present");
+        let names: Vec<&str> = cps
+            .view_functions
+            .iter()
+            .map(|view_function| view_function.name.as_str())
+            .collect();
+
+        assert!(names.contains(&"resolve_scope"), "{names:?}");
+        assert!(names.contains(&"has_capability"), "{names:?}");
+        assert!(names.contains(&"identity_of"), "{names:?}");
+        assert!(names.contains(&"node_by_identity"), "{names:?}");
+        for name in [
+            "parent",
+            "children",
+            "meta",
+            "payload",
+            "scope_of",
+            "address_capability",
+        ] {
+            assert!(names.contains(&name), "{name} missing: {names:?}");
+        }
+    }
+
+    #[test]
+    fn metadata_exposes_generic_view_function_api_only() {
+        let metadata = decode_v16();
+        let apis: Vec<&str> = metadata.apis.iter().map(|api| api.name.as_str()).collect();
+
+        assert!(apis.contains(&"RuntimeViewFunction"), "{apis:?}");
+        assert!(!apis.contains(&"CpsApi"), "{apis:?}");
+    }
+}

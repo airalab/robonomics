@@ -150,9 +150,9 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(Weight::from_parts(0, 7576))
 			// Standard Error: 2_130
 			.saturating_add(Weight::from_parts(742_818, 0).saturating_mul(a.into()))
-			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().reads(5))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
-			.saturating_add(T::DbWeight::get().writes(6))
+			.saturating_add(T::DbWeight::get().writes(8))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2563).saturating_mul(a.into()))
 	}
@@ -210,6 +210,61 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 		Weight::from_parts(67_667_000, 0)
 			.saturating_add(Weight::from_parts(0, 81278))
 			.saturating_add(T::DbWeight::get().reads(34))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// PROVISIONAL: estimated from `grant_access` plus an sr25519 verification
+	/// where applicable; regenerate with `frame-omni-bencher` on reference
+	/// hardware.
+	///
+	/// Storage: `CPS::Nodes` (r:32 w:0)
+	/// Storage: `CPS::Scopes` (r:1 w:0)
+	/// Storage: `CPS::IdentityNode` (r:1 w:2)
+	/// Storage: `CPS::NodeIdentity` (r:1 w:1)
+	fn set_identity_self() -> Weight {
+		Weight::from_parts(75_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 84_500))
+			.saturating_add(T::DbWeight::get().reads(35))
+			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// PROVISIONAL, see `set_identity_self`. Also reads the block number and
+	/// the genesis hash.
+	fn set_identity_delegated() -> Weight {
+		Weight::from_parts(175_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 84_500))
+			.saturating_add(T::DbWeight::get().reads(37))
+			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// PROVISIONAL, see `set_identity_self`.
+	///
+	/// Storage: `CPS::Nodes` (r:32 w:0)
+	/// Storage: `CPS::Scopes` (r:1 w:0)
+	/// Storage: `CPS::NodeIdentity` (r:1 w:1)
+	/// Storage: `CPS::IdentityNode` (r:0 w:1)
+	fn clear_identity() -> Weight {
+		Weight::from_parts(70_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 84_500))
+			.saturating_add(T::DbWeight::get().reads(34))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// PROVISIONAL, see `set_identity_self`. Added to `create_node`.
+	fn create_node_identity_self() -> Weight {
+		Weight::from_parts(15_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 3_500))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// PROVISIONAL, see `set_identity_self`. Added to `create_node`.
+	fn create_node_identity_delegated() -> Weight {
+		Weight::from_parts(115_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 3_500))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// PROVISIONAL, see `set_identity_self`. Added to `create_node`.
+	fn create_root_identity_self() -> Weight {
+		Weight::from_parts(15_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 3_500))
+			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
 }
