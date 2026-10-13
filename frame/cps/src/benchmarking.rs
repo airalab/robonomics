@@ -709,30 +709,28 @@ mod benchmarks {
         }
     }
 
-    /// Diagnostic (non-dispatchable) benchmark of the `scope_of_address` view
-    /// at the maximum Scope depth: the `resolve_scope` walk plus the
-    /// projection of the Scope root.
+    /// Diagnostic (non-dispatchable) benchmark of the `scope_of` view at the
+    /// maximum Scope depth: the `resolve_scope` walk.
     #[benchmark(extra)]
     fn address_scope_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
         let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
-        let root_identity = bind_view_identity::<T>(root, 0);
-        let identity = bind_view_identity::<T>(node, 1);
+        let identity = bind_view_identity::<T>(node, 0);
+        let expected = Pallet::<T>::resolve_scope(root)
+            .expect("the chain root resolves")
+            .id;
 
         #[block]
         {
-            assert_eq!(
-                Pallet::<T>::scope_of_address(identity).map(|scope| scope.root),
-                Ok(root_identity)
-            );
+            assert_eq!(Pallet::<T>::scope_of(identity), Ok(expected));
         }
     }
 
-    /// Diagnostic (non-dispatchable) benchmark of the `address_has_capability`
+    /// Diagnostic (non-dispatchable) benchmark of the `address_capability`
     /// view at the maximum Access traversal depth: a `GrantMode::Subtree`
     /// grant at the Scope root, checked at the deepest node.
     #[benchmark(extra)]
-    fn address_has_capability_worst_case() {
+    fn address_capability_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
         let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
@@ -748,7 +746,7 @@ mod benchmarks {
         #[block]
         {
             assert_eq!(
-                Pallet::<T>::address_has_capability(accessor, identity, Capability::Write),
+                Pallet::<T>::address_capability(accessor, identity, Capability::Write),
                 Ok(true)
             );
         }

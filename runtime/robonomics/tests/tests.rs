@@ -211,7 +211,9 @@ mod cps_view_functions {
                 call.encode(),
             )
             .expect("view function is dispatched by the runtime");
-            assert!(!bool::decode(&mut &output[..]).expect("output decodes"));
+            let result =
+                Result::<bool, Error<Runtime>>::decode(&mut &output[..]).expect("output decodes");
+            assert_eq!(result, Err(Error::<Runtime>::NodeNotFound));
         });
     }
 

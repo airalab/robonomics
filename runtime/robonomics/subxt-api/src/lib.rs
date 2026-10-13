@@ -255,14 +255,11 @@ mod tests {
             ("children", views.children(account()).validation_hash()),
             ("meta", views.meta(account()).validation_hash()),
             ("payload", views.payload(account()).validation_hash()),
+            ("scope_of", views.scope_of(account()).validation_hash()),
             (
-                "scope_of_address",
-                views.scope_of_address(account()).validation_hash(),
-            ),
-            (
-                "address_has_capability",
+                "address_capability",
                 views
-                    .address_has_capability(account(), account(), Capability::Write)
+                    .address_capability(account(), account(), Capability::Write)
                     .validation_hash(),
             ),
         ] {

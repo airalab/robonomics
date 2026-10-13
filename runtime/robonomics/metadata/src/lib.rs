@@ -108,8 +108,8 @@ mod tests {
             "children",
             "meta",
             "payload",
-            "scope_of_address",
-            "address_has_capability",
+            "scope_of",
+            "address_capability",
         ] {
             assert!(names.contains(&name), "{name} missing: {names:?}");
         }

@@ -1019,7 +1019,10 @@ fn upper_scope_owner_can_replace_nested_scope_root() {
         // The previous generation is synchronously cleaned up.
         assert_eq!(access_count(old_nested), 0);
         assert!(Cps::scope_info(old_nested).is_none());
-        assert!(!Cps::has_capability(NodeId(2), 3, Capability::Write));
+        assert_eq!(
+            Cps::has_capability(NodeId(2), 3, Capability::Write),
+            Ok(false)
+        );
 
         // The previous nested owner has lost control.
         assert_noop!(
@@ -1975,9 +1978,9 @@ fn has_capability_reflects_owner_and_access_write() {
         let root = NodeId(0);
         let child = NodeId(1);
 
-        assert!(Cps::has_capability(root, 1, Capability::Write));
-        assert!(Cps::has_capability(child, 1, Capability::Write));
-        assert!(!Cps::has_capability(root, 2, Capability::Write));
+        assert_eq!(Cps::has_capability(root, 1, Capability::Write), Ok(true));
+        assert_eq!(Cps::has_capability(child, 1, Capability::Write), Ok(true));
+        assert_eq!(Cps::has_capability(root, 2, Capability::Write), Ok(false));
 
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -1986,8 +1989,8 @@ fn has_capability_reflects_owner_and_access_write() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert!(Cps::has_capability(root, 2, Capability::Write));
-        assert!(!Cps::has_capability(child, 2, Capability::Write));
+        assert_eq!(Cps::has_capability(root, 2, Capability::Write), Ok(true));
+        assert_eq!(Cps::has_capability(child, 2, Capability::Write), Ok(false));
     });
 }
 
@@ -2003,8 +2006,14 @@ fn has_capability_reflects_create_scope_semantics() {
         ));
         let root = NodeId(0);
 
-        assert!(Cps::has_capability(root, 1, Capability::CreateScope));
-        assert!(!Cps::has_capability(root, 2, Capability::CreateScope));
+        assert_eq!(
+            Cps::has_capability(root, 1, Capability::CreateScope),
+            Ok(true)
+        );
+        assert_eq!(
+            Cps::has_capability(root, 2, Capability::CreateScope),
+            Ok(false)
+        );
 
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -2013,15 +2022,24 @@ fn has_capability_reflects_create_scope_semantics() {
             Capability::Write,
             GrantMode::Subtree,
         ));
-        assert!(!Cps::has_capability(root, 2, Capability::CreateScope));
+        assert_eq!(
+            Cps::has_capability(root, 2, Capability::CreateScope),
+            Ok(false)
+        );
     });
 }
 
 #[test]
-fn has_capability_returns_false_for_missing_node() {
+fn has_capability_fails_for_missing_node() {
     new_test_ext().execute_with(|| {
-        assert!(!Cps::has_capability(NodeId(0), 1, Capability::Write));
-        assert!(!Cps::has_capability(NodeId(0), 1, Capability::CreateScope));
+        assert_eq!(
+            Cps::has_capability(NodeId(0), 1, Capability::Write),
+            Err(Error::<Runtime>::NodeNotFound)
+        );
+        assert_eq!(
+            Cps::has_capability(NodeId(0), 1, Capability::CreateScope),
+            Err(Error::<Runtime>::NodeNotFound)
+        );
     });
 }
 
@@ -2059,22 +2077,40 @@ fn has_capability_create_scope_includes_enclosing_scope_owner() {
         ));
 
         // Owner of the immediately enclosing Scope.
-        assert!(Cps::has_capability(NodeId(1), 1, Capability::CreateScope));
-        assert!(Cps::has_capability(NodeId(2), 2, Capability::CreateScope));
+        assert_eq!(
+            Cps::has_capability(NodeId(1), 1, Capability::CreateScope),
+            Ok(true)
+        );
+        assert_eq!(
+            Cps::has_capability(NodeId(2), 2, Capability::CreateScope),
+            Ok(true)
+        );
         // Owner of a Scope two levels up, a delegate of the enclosing Scope,
         // and an account at a root without an enclosing Scope.
-        assert!(!Cps::has_capability(NodeId(2), 1, Capability::CreateScope));
-        assert!(!Cps::has_capability(NodeId(1), 4, Capability::CreateScope));
-        assert!(!Cps::has_capability(NodeId(0), 2, Capability::CreateScope));
+        assert_eq!(
+            Cps::has_capability(NodeId(2), 1, Capability::CreateScope),
+            Ok(false)
+        );
+        assert_eq!(
+            Cps::has_capability(NodeId(1), 4, Capability::CreateScope),
+            Ok(false)
+        );
+        assert_eq!(
+            Cps::has_capability(NodeId(0), 2, Capability::CreateScope),
+            Ok(false)
+        );
         // The enclosing owner rule applies to `CreateScope` only.
-        assert!(!Cps::has_capability(NodeId(1), 1, Capability::Write));
+        assert_eq!(
+            Cps::has_capability(NodeId(1), 1, Capability::Write),
+            Ok(false)
+        );
 
         // `has_capability` agrees with `create_scope` for every pair.
         for who in 1..=5u64 {
             for node in 0..=2u64 {
                 assert_eq!(
                     Cps::has_capability(NodeId(node), who, Capability::CreateScope),
-                    create_scope_succeeds(who, NodeId(node)),
+                    Ok(create_scope_succeeds(who, NodeId(node))),
                     "account {who}, node {node}"
                 );
             }
@@ -2898,7 +2934,7 @@ fn has_capability_view_function_matches_pallet_logic() {
         for node in [0u64, 1, 2, 9] {
             for who in 1..=5u64 {
                 for capability in [Capability::Write, Capability::CreateScope] {
-                    let via_view: bool =
+                    let via_view: Result<bool, Error<Runtime>> =
                         dispatch_view_function(pallet::HasCapabilityViewFunction::<Runtime>::new(
                             NodeId(node),
                             who,
@@ -2923,11 +2959,12 @@ fn view_functions_do_not_mutate_storage() {
 
         let _: Result<ResolvedScope<u64>, Error<Runtime>> =
             dispatch_view_function(pallet::ResolveScopeViewFunction::<Runtime>::new(NodeId(1)));
-        let _: bool = dispatch_view_function(pallet::HasCapabilityViewFunction::<Runtime>::new(
-            NodeId(1),
-            2,
-            Capability::CreateScope,
-        ));
+        let _: Result<bool, Error<Runtime>> =
+            dispatch_view_function(pallet::HasCapabilityViewFunction::<Runtime>::new(
+                NodeId(1),
+                2,
+                Capability::CreateScope,
+            ));
 
         assert_eq!(
             root_before,
@@ -3737,62 +3774,47 @@ mod address_view_tests {
     }
 
     #[test]
-    fn scope_of_address_returns_scope_id_root_identity_and_owner() {
+    fn scope_of_returns_scope_id() {
         new_test_ext().execute_with(|| {
             setup();
-            let expected = AddressScope {
-                scope_id: ScopeId(0),
-                root: ALICE,
-                owner: OWNER,
-            };
-            assert_eq!(Cps::scope_of_address(CAROL), Ok(expected.clone()));
-            assert_eq!(Cps::scope_of_address(ALICE), Ok(expected));
+            assert_eq!(Cps::scope_of(CAROL), Ok(ScopeId(0)));
+            assert_eq!(Cps::scope_of(ALICE), Ok(ScopeId(0)));
         });
     }
 
     #[test]
-    fn scope_of_address_fails_for_unknown_identity() {
+    fn scope_of_fails_for_unknown_identity() {
         new_test_ext().execute_with(|| {
             setup();
             assert_eq!(
-                Cps::scope_of_address(STRANGER),
+                Cps::scope_of(STRANGER),
                 Err(AddressViewError::IdentityNotFound)
             );
         });
     }
 
     #[test]
-    fn scope_of_address_fails_if_scope_root_has_no_identity() {
+    fn scope_of_works_when_scope_root_has_no_identity() {
         new_test_ext().execute_with(|| {
             setup();
             // Node 4 has no identity and becomes the root of Scope 1.
             assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(4)));
-            assert_eq!(
-                Cps::scope_of_address(DAVE),
-                Err(AddressViewError::MissingProjectedIdentity)
-            );
+            assert_eq!(Cps::scope_of(DAVE), Ok(ScopeId(1)));
         });
     }
 
     #[test]
-    fn scope_of_address_ignores_unlinked_nodes_between_target_and_root() {
+    fn scope_of_ignores_unlinked_nodes_between_target_and_root() {
         new_test_ext().execute_with(|| {
             setup();
-            // The path of node 5 is `#5, #4, #1`; only the root #1 is shown.
+            // The path of node 5 is `#5, #4, #1`; neither #4 nor #1 is shown.
             assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(1)));
-            assert_eq!(
-                Cps::scope_of_address(DAVE),
-                Ok(AddressScope {
-                    scope_id: ScopeId(1),
-                    root: BOB,
-                    owner: OWNER,
-                })
-            );
+            assert_eq!(Cps::scope_of(DAVE), Ok(ScopeId(1)));
         });
     }
 
     #[test]
-    fn address_has_capability_resolves_target_identity_to_node() {
+    fn address_capability_resolves_target_identity_to_node() {
         new_test_ext().execute_with(|| {
             setup();
             assert_ok!(Cps::grant_access(
@@ -3806,26 +3828,26 @@ mod address_view_tests {
                 for caller in [OWNER, STRANGER, 77] {
                     for capability in [Capability::Write, Capability::CreateScope] {
                         assert_eq!(
-                            Cps::address_has_capability(caller, target, capability),
-                            Ok(Cps::has_capability(NodeId(node), caller, capability)),
+                            Cps::address_capability(caller, target, capability),
+                            Ok(Cps::has_capability(NodeId(node), caller, capability).unwrap()),
                             "target {target}, caller {caller}, {capability:?}"
                         );
                     }
                 }
             }
             assert_eq!(
-                Cps::address_has_capability(STRANGER, BOB, Capability::Write),
+                Cps::address_capability(STRANGER, BOB, Capability::Write),
                 Ok(true)
             );
             assert_eq!(
-                Cps::address_has_capability(STRANGER, CAROL, Capability::Write),
+                Cps::address_capability(STRANGER, CAROL, Capability::Write),
                 Ok(false)
             );
         });
     }
 
     #[test]
-    fn address_has_capability_works_when_ancestors_have_no_identity() {
+    fn address_capability_works_when_ancestors_have_no_identity() {
         new_test_ext().execute_with(|| {
             setup();
             // The grant at #1 reaches Dave (#5) through unlinked #4.
@@ -3837,18 +3859,18 @@ mod address_view_tests {
                 GrantMode::Subtree,
             ));
             assert_eq!(
-                Cps::address_has_capability(STRANGER, DAVE, Capability::Write),
+                Cps::address_capability(STRANGER, DAVE, Capability::Write),
                 Ok(true)
             );
         });
     }
 
     #[test]
-    fn address_has_capability_fails_for_unknown_target() {
+    fn address_capability_fails_for_unknown_target() {
         new_test_ext().execute_with(|| {
             setup();
             assert_eq!(
-                Cps::address_has_capability(OWNER, STRANGER, Capability::Write),
+                Cps::address_capability(OWNER, STRANGER, Capability::Write),
                 Err(AddressViewError::IdentityNotFound)
             );
         });
@@ -3877,19 +3899,12 @@ mod address_view_tests {
                 dispatch_view_function(pallet::PayloadViewFunction::<Runtime>::new(BOB));
             assert_eq!(payload, Ok(None));
 
-            let scope: Result<AddressScope<u64>, AddressViewError> =
-                dispatch_view_function(pallet::ScopeOfAddressViewFunction::<Runtime>::new(CAROL));
-            assert_eq!(
-                scope,
-                Ok(AddressScope {
-                    scope_id: ScopeId(0),
-                    root: ALICE,
-                    owner: OWNER,
-                })
-            );
+            let scope: Result<ScopeId, AddressViewError> =
+                dispatch_view_function(pallet::ScopeOfViewFunction::<Runtime>::new(CAROL));
+            assert_eq!(scope, Ok(ScopeId(0)));
 
             let allowed: Result<bool, AddressViewError> =
-                dispatch_view_function(pallet::AddressHasCapabilityViewFunction::<Runtime>::new(
+                dispatch_view_function(pallet::AddressCapabilityViewFunction::<Runtime>::new(
                     OWNER,
                     CAROL,
                     Capability::Write,

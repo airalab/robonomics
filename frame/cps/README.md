@@ -269,11 +269,12 @@ implemented by the same logic as the calls:
 - `resolve_scope(node_id) -> Result<ResolvedScope<AccountId>, Error>` - the
   Scope's `id`, `root` node, `owner`, and the `path` from the node to the
   Scope root; `NodeNotFound` or `ScopeNotFound` if no Scope can be resolved.
-- `has_capability(node_id, account, capability) -> bool` - whether the
+- `has_capability(node_id, account, capability) -> Result<bool, Error>` - whether the
   account may use `capability` at the node, with the same checks as the calls
   that require it: Scope ownership or Access entries, and for `CreateScope`
   also ownership of the immediately enclosing Scope at a nested Scope root;
-  `false` if the node does not exist.
+  `false` if access is denied, `NodeNotFound` if the node does not exist and
+  `ScopeNotFound` if no Scope can be resolved for it.
 - `identity_of(node_id) -> Option<AccountId>` - the identity of the node, if
   it has one.
 - `node_by_identity(account) -> Option<NodeId>` - the node the account is the
@@ -297,9 +298,8 @@ run on the canonical `NodeId` tree and return only accounts, `ScopeId`,
   order, at most `MAX_CHILDREN_PER_NODE`.
 - `meta(identity) -> Option<NodeMeta>` and `payload(identity) ->
   Option<NodePayload>`.
-- `scope_of_address(identity) -> AddressScope` - `scope_id`, the identity of
-  the Scope `root`, and the `owner`.
-- `address_has_capability(caller, target, capability) -> bool` - the same
+- `scope_of(identity) -> ScopeId` - the id of the Scope of the node.
+- `address_capability(caller, target, capability) -> bool` - the same
   check as `has_capability`, at the node `target` is the identity of.
 
 The projection is strict. `NodeIdentity` is optional, so a result that has to
@@ -308,9 +308,9 @@ contain a node without identity fails as a whole with
 Alice has the children Bob, Carol and a node without identity,
 `children(Alice)` fails rather than return `[Bob, Carol]`, which would show a
 different topology. An unlinked input account fails with `IdentityNotFound`.
-Only nodes that appear in the result need an identity: `scope_of_address`
-needs one for the Scope root only, `address_has_capability` for `target` only,
-and nodes in between are not shown.
+Only nodes that appear in the result need an identity. `scope_of` and
+`address_capability` show no node, so only the input account has to be
+linked.
 
 There is no filtered view ("children with identity only", "nearest identified
 parent") and no recursive subtree view. A client walks the hierarchy one

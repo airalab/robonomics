@@ -127,29 +127,12 @@
 //!   node can only get the caller as identity: its Scope does not exist yet,
 //!   so no permit can name it.
 //!
-//! ### Why a permit needs no nonce
-//!
-//! A [`ScopeId`] is never reused and its owner never changes, and only the
-//! Scope owner can use a permit, so the `ScopeId` already determines who may
-//! consume it. The permit is not consumed: since an account can be the
-//! identity of one node only, it cannot be bound twice, but the owner may
-//! clear the identity and use the same permit for another node of the Scope
-//! until `valid_until`. Replacing the Scope gives its nodes a new `ScopeId`
-//! and so invalidates the permits of the old one, without any bookkeeping.
-//!
-//! This holds only while identity administration is limited to the Scope
-//! owner. If it is ever delegated (for example by a `ManageIdentity`
-//! capability), the permit payload must also name the delegate.
-//!
-//! The permit signature is verified over the raw payload bytes, without a
-//! `<Bytes>` wrapper.
-//!
 //! ### Address-oriented views
 //!
 //! Clients can navigate the tree by identity accounts only, through the view
 //! functions [`Pallet::parent`], [`Pallet::children`], [`Pallet::meta`],
-//! [`Pallet::payload`], [`Pallet::scope_of_address`] and
-//! [`Pallet::address_has_capability`]. They take identity accounts, resolve
+//! [`Pallet::payload`], [`Pallet::scope_of`] and
+//! [`Pallet::address_capability`]. They take identity accounts, resolve
 //! them through [`IdentityNode`], run on the canonical [`NodeId`] tree and
 //! never return a [`NodeId`]. They are a strict projection of that tree, not
 //! a second tree:
@@ -160,10 +143,10 @@
 //!   and there is no "nearest identified ancestor".
 //! - An input account that is the identity of no node fails with
 //!   [`AddressViewError::IdentityNotFound`].
-//! - Only nodes shown in the result need an identity: the Scope root for
-//!   [`Pallet::scope_of_address`], the target alone for
-//!   [`Pallet::address_has_capability`], whose Scope and Access resolution
-//!   is the canonical one. [`ScopeId`] and [`Capability`] stay visible.
+//! - Only nodes shown in the result need an identity. [`Pallet::scope_of`]
+//!   and [`Pallet::address_capability`] show no node, so only the input
+//!   account has to be linked, and their Scope and Access resolution is the
+//!   canonical one. [`ScopeId`] and [`Capability`] stay visible.
 //! - The views are not recursive. A client walks the hierarchy one bounded
 //!   call at a time.
 //!
@@ -668,7 +651,7 @@ pub struct ResolvedScope<AccountId> {
 
 /// Error of the address-oriented view functions ([`Pallet::parent`],
 /// [`Pallet::children`], [`Pallet::meta`], [`Pallet::payload`],
-/// [`Pallet::scope_of_address`] and [`Pallet::address_has_capability`]).
+/// [`Pallet::scope_of`] and [`Pallet::address_capability`]).
 ///
 /// The views are a strict projection of the canonical [`NodeId`] tree onto
 /// identity accounts, so a call fails rather than expose a [`NodeId`] or
@@ -680,21 +663,6 @@ pub enum AddressViewError {
     /// A node that the result has to contain has no identity, so it cannot
     /// be shown as an account.
     MissingProjectedIdentity,
-}
-
-/// Address-oriented Scope returned by [`Pallet::scope_of_address`].
-///
-/// [`ScopeId`] is not a structural node identifier but the immutable
-/// administrative generation of a Scope, so it stays visible. The Scope
-/// root is shown by its identity account.
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
-pub struct AddressScope<AccountId> {
-    /// Identifier of the Scope.
-    pub scope_id: ScopeId,
-    /// Identity account of the Scope root node.
-    pub root: AccountId,
-    /// Owner of the Scope.
-    pub owner: AccountId,
 }
 
 /// Permit by which an identity account lets the owner of a Scope use it as a
@@ -1597,20 +1565,31 @@ pub mod pallet {
         ///   [`Pallet::create_scope`], i.e. [`Self::authorize`] or, at a
         ///   nested Scope root, ownership of the immediately enclosing Scope.
         ///
-        /// Returns `false` if `node_id` does not exist or no Scope can be
-        /// resolved for it.
+        /// Returns `Ok(false)` if the check fails with [`Error::AccessDenied`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::ScopeNotFound`]: no Scope can be resolved for `node_id`.
+        ///   Not expected while the storage invariants hold.
         ///
         /// Exposed to off-chain clients as a pallet view function.
         pub fn has_capability(
             node_id: NodeId,
             account_id: T::AccountId,
             capability: Capability,
-        ) -> bool {
-            match capability {
-                Capability::CreateScope => <Nodes<T>>::get(node_id).is_some_and(|info| {
-                    Self::authorize_create_scope(node_id, &info, &account_id).is_ok()
-                }),
-                Capability::Write => Self::authorize(node_id, &account_id, capability).is_ok(),
+        ) -> Result<bool, Error<T>> {
+            let checked = match capability {
+                Capability::CreateScope => {
+                    let info = <Nodes<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
+                    Self::authorize_create_scope(node_id, &info, &account_id)
+                }
+                Capability::Write => Self::authorize(node_id, &account_id, capability).map(|_| ()),
+            };
+            match checked {
+                Ok(()) => Ok(true),
+                Err(Error::<T>::AccessDenied) => Ok(false),
+                Err(err) => Err(err),
             }
         }
 
@@ -1703,31 +1682,19 @@ pub mod pallet {
             Ok(<Payload<T>>::get(Self::linked_node(&identity)?))
         }
 
-        /// The Scope of the node that `identity` is bound to, resolved by
-        /// [`Self::resolve_scope`] and shown as an [`AddressScope`].
-        ///
-        /// Only the Scope root has to have an identity. Nodes between
-        /// `identity` and the root need none.
+        /// The Scope of the node that `identity` is bound to.
         ///
         /// # Errors
         ///
         /// - [`AddressViewError::IdentityNotFound`]: `identity` is not linked.
-        /// - [`AddressViewError::MissingProjectedIdentity`]: the Scope root
-        ///   has no identity.
-        pub fn scope_of_address(
-            identity: T::AccountId,
-        ) -> Result<AddressScope<T::AccountId>, AddressViewError> {
+        pub fn scope_of(identity: T::AccountId) -> Result<ScopeId, AddressViewError> {
             let node_id = Self::linked_node(&identity)?;
             let resolved = Self::resolve_scope(node_id).map_err(|_| {
                 // A node bound to an identity always resolves to a Scope.
                 frame_support::defensive!("linked node resolves to a Scope");
                 AddressViewError::IdentityNotFound
             })?;
-            Ok(AddressScope {
-                scope_id: resolved.id,
-                root: Self::project_node(resolved.root)?,
-                owner: resolved.owner,
-            })
+            Ok(resolved.id)
         }
 
         /// Whether `caller` may use `capability` at the node that `target` is
@@ -1740,13 +1707,17 @@ pub mod pallet {
         /// # Errors
         ///
         /// - [`AddressViewError::IdentityNotFound`]: `target` is not linked.
-        pub fn address_has_capability(
+        pub fn address_capability(
             caller: T::AccountId,
             target: T::AccountId,
             capability: Capability,
         ) -> Result<bool, AddressViewError> {
             let node_id = Self::linked_node(&target)?;
-            Ok(Self::has_capability(node_id, caller, capability))
+            Self::has_capability(node_id, caller, capability).map_err(|_| {
+                // A node bound to an identity exists and resolves to a Scope.
+                frame_support::defensive!("linked node resolves to a Scope");
+                AddressViewError::IdentityNotFound
+            })
         }
     }
 
