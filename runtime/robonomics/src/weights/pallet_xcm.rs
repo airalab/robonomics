@@ -367,24 +367,8 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 	/// Proof: `XcmPallet::ShouldRecordXcm` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: `XcmPallet::AssetTraps` (r:1 w:1)
 	/// Proof: `XcmPallet::AssetTraps` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn claim_assets() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `181`
-		//  Estimated: `3646`
-		// Minimum execution time: 28_734_000 picoseconds.
-		Weight::from_parts(30_086_000, 0)
-			.saturating_add(Weight::from_parts(0, 3646))
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	/// Storage: `ParachainInfo::RelayNetwork` (r:1 w:0)
-	/// Proof: `ParachainInfo::RelayNetwork` (`max_values`: Some(1), `max_size`: Some(41), added: 536, mode: `MaxEncodedLen`)
-	/// Storage: `XcmPallet::ShouldRecordXcm` (r:1 w:0)
-	/// Proof: `XcmPallet::ShouldRecordXcm` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-	/// Storage: `XcmPallet::AssetTraps` (r:1 w:1)
-	/// Proof: `XcmPallet::AssetTraps` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	/// The range of component `n` is `[1, 20]`.
-	fn claim_assets_by_size(n: u32, ) -> Weight {
+	fn claim_assets(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `181`
 		//  Estimated: `3646`
@@ -416,16 +400,8 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 		Weight::from_parts(18_446_744_073_709_551_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
-	fn weigh_message() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 7_434_000 picoseconds.
-		Weight::from_parts(7_625_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
-	}
 	/// The range of component `n` is `[0, 8192]`.
-	fn weigh_message_by_size(n: u32, ) -> Weight {
+	fn weigh_message(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`

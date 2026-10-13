@@ -156,6 +156,12 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type Consideration = ();
 }
 
+parameter_types! {
+    /// Number of blocks a deferred whitelisted dispatch stays valid before it
+    /// expires, measured by the system block number.
+    pub const DeferredDispatchExpiration: BlockNumber = 3 * DAYS;
+}
+
 impl pallet_whitelist::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
@@ -169,6 +175,8 @@ impl pallet_whitelist::Config for Runtime {
     >;
     type DispatchWhitelistedOrigin = EitherOf<EnsureRoot<AccountId>, WhitelistedCaller>;
     type Preimages = Preimage;
+    type DeferredDispatchExpiration = DeferredDispatchExpiration;
+    type BlockNumberProvider = System;
     type WeightInfo = weights::pallet_whitelist::WeightInfo<Runtime>;
 }
 

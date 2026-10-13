@@ -61,9 +61,6 @@ use sp_runtime::{
     BoundedVec, FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
-
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 mod genesis_config_presets;
@@ -84,21 +81,12 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 52,
+    spec_version: 53,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
     system_version: 1,
 };
-
-/// The version infromation used to identify this runtime when compiled natively.
-#[cfg(feature = "std")]
-pub fn native_version() -> NativeVersion {
-    NativeVersion {
-        runtime_version: VERSION,
-        can_author_with: Default::default(),
-    }
-}
 
 impl_opaque_keys! {
     pub struct SessionKeys {

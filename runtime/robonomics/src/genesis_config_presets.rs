@@ -67,9 +67,6 @@ fn robonomics_genesis(
         xcm_pallet: XcmPalletConfig {
             safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
         },
-        sudo: SudoConfig {
-            key: Some(Sr25519Keyring::Alice.to_account_id())
-        },
     })
 }
 

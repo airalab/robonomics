@@ -16,7 +16,7 @@ Download and install:
 
 ```bash
 wget -O polkadot-omni-node \
-  https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2506-1/polkadot-omni-node
+  https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2609/polkadot-omni-node
 chmod +x polkadot-omni-node
 sudo mv polkadot-omni-node /usr/local/bin/
 ```
