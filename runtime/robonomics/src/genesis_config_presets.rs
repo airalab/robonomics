@@ -25,7 +25,6 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
-use xcm::latest::{prelude::NetworkId, WESTEND_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2000);
 
@@ -34,7 +33,6 @@ fn robonomics_genesis(
     endowed_accounts: Vec<AccountId>,
     endowment: Balance,
     parachain_id: ParaId,
-    relay_network: NetworkId,
 ) -> serde_json::Value {
     #[allow(unused_mut)]
     let mut patch = build_struct_json_patch!(RuntimeGenesisConfig {
@@ -45,10 +43,7 @@ fn robonomics_genesis(
                 .map(|k| (k, endowment))
                 .collect(),
         },
-        parachain_info: ParachainInfoConfig {
-            parachain_id,
-            relay_network,
-        },
+        parachain_info: ParachainInfoConfig { parachain_id },
         collator_selection: CollatorSelectionConfig {
             invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
             candidacy_bond: 32 * XRT,
@@ -104,7 +99,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             endowed_accounts,
             1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
-            NetworkId::ByGenesis(WESTEND_GENESIS_HASH),
         ),
         sp_genesis_builder::DEV_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
@@ -115,7 +109,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             endowed_accounts,
             1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
-            NetworkId::ByGenesis(WESTEND_GENESIS_HASH),
         ),
         _ => return None,
     };

@@ -69,7 +69,6 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
-pallet-robonomics-parachain-info.workspace = true
 robonomics-collator-rewards.workspace = true
 
 # cumulus dependencies
@@ -82,6 +81,7 @@ cumulus-pallet-session-benchmarking = { workspace = true, optional = true }
 cumulus-primitives-aura.workspace = true
 cumulus-primitives-core.workspace = true
 cumulus-primitives-utility.workspace = true
+parachain-info.workspace = true
 
 # polkadot dependencies
 xcm.workspace = true
@@ -167,7 +167,7 @@ std = [
   "pallet-xcm/std",
   "polkadot-parachain-primitives/std",
   "polkadot-runtime-common/std",
-  "pallet-robonomics-parachain-info/std",
+  "parachain-info/std",
   "scale-info/std",
 ]
 runtime-benchmarks = [
@@ -240,7 +240,7 @@ try-runtime = [
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
   "robonomics-collator-rewards/try-runtime",
-  "pallet-robonomics-parachain-info/try-runtime",
+  "parachain-info/try-runtime",
   "sp-runtime/try-runtime",
 ]
 

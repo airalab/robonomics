@@ -24,9 +24,9 @@ chain specs and runtime upgrades. Node binaries and operational tooling live in
 
 ```text
 airalab/robonomics        airalab/robins
-  runtime                   blockchain node
-  pallets                   utilities
-  chain specs               service tooling
+  runtime                   utilities
+  pallets                   service tooling
+  chain specs               packages
 ```
 
 Collators run the generic [`polkadot-omni-node`](https://crates.io/crates/polkadot-omni-node)
@@ -44,37 +44,37 @@ This repository is organized as a Cargo workspace with the following structure:
 ### Pallets
 
 - **`frame/`** - Custom FRAME pallets for IoT and robotics
+  - `collator-rewards/` - Generic collator (block author) rewards
+  - `cps/` - Cyber-physical System pallet (generic digital twin)
+  - **DEPRECATED** - following pallets will be removed in near future
   - `datalog/` - Immutable on-chain data logging with time-series storage
-  - `digital-twin/` - Digital twin state management and topic-based data organization
   - `launch/` - Robot/device launch commands with parameter support
+  - `digital-twin/` - Digital twin state management and topic-based data organization
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
-  - `cps/` - Cyber-physical Systems pallet for IoT integration
-  - `parachain-info/` - Original cumulus pallet extended with relay network info
-  - `collator-rewards/` - Generic per-block collator (block author) reward helper
 
 ### Chain Specifications
 
 - **`chain-spec/`** - the `robonomics-chain-spec` crate
-  - Embeds the raw Kusama and Polkadot parachain chain specs as `&'static str` constants
+  - Embeds the raw Polkadot & Robonomics chain specs as `&'static str` constants
   - Has no dependencies of its own, so downstream tooling and collator setups can depend on
     it instead of vendoring JSON or fetching it from GitHub
 
 ### Documentation
 
-- **`docs/robonomics-5.0-roadmap.md`** - the Robonomics 5.0 architecture and implementation
-  sequence: Governance, CPS, Scope, Access, Subscription, Storage, Compute and Policy
+- **[`docs/robonomics-5.0-roadmap.md`](./docs/robonomics-5.0-roadmap.md)** - 5.x architecture and implementation
 - **[`COLLATOR_GUIDE.md`](./COLLATOR_GUIDE.md)** - running a collator on `polkadot-omni-node`
 - **[`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md)** - building and working with the runtime
 
 ### Development Infrastructure
 
 - **`scripts/`** - Build, deployment, and testing scripts
-  - `weights/` - Weight template for runtime benchmarks
   - `build-runtime.sh` - Deterministic runtime build via `paritytech/srtool`
+  - `development-chain.sh` - Build dev-chain spec / run local development node 
   - `runtime-benchmarks.sh` - Automated runtime benchmarking for all pallets
-  - `check-weights.pl` - Fails if an extrinsic is not charged through a benchmarked `WeightInfo`
   - `try-runtime.sh` - Automated runtime upgrade checks
+  - `check-weights.pl` - Fails if an extrinsic is not charged through a benchmarked `WeightInfo`
+  - `weights/` - Weight template for runtime benchmarks
 
 ## Contributing
 

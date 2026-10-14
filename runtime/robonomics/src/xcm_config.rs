@@ -46,7 +46,7 @@ use xcm_executor::{Config, XcmExecutor};
 pub const ASSET_HUB_ID: u32 = 1000;
 
 parameter_types! {
-    pub RelayNetwork: NetworkId = ParachainInfo::relay_network();
+    pub RelayNetwork: NetworkId = NetworkId::Polkadot;
     pub UniversalLocation: InteriorLocation =
         [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
     pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
