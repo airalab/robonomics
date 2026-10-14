@@ -36,14 +36,14 @@ esac
 # Check if we're in a nix shell or need to use the built runtime
 if [ -z "$RUNTIME_WASM" ]; then
     # Default runtime path for cargo build
-    RUNTIME="./target/release/wbuild/robonomics-runtime/development_runtime.rs.compact.compressed.wasm"
+    RUNTIME="./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm"
     
     # Check if runtime exists
     if [ ! -f "$RUNTIME" ]; then
         echo -e "${YELLOW}Runtime WASM not found at $RUNTIME${NC}"
         echo -e "${YELLOW}Building runtime...${NC}"
         require_bin cargo "https://rustup.rs"
-        cargo build --release -p robonomics-runtime
+        cargo build --release -p robonomics-runtime --features dev-runtime
         
         # Verify the build succeeded
         if [ ! -f "$RUNTIME" ]; then
