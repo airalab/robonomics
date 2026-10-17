@@ -16,6 +16,7 @@ members = [
   "frame/launch",
   "frame/liability",
   "frame/rws",
+  "frame/subscription",
   "frame/subscription/primitives",
   "runtime/robonomics",
   "runtime/robonomics/metadata",
@@ -138,6 +139,7 @@ substrate-wasm-builder = "35.0.0"
 pallet-robonomics-cps = { version = "1.1", path = "./frame/cps", default-features = false }
 robonomics-collator-rewards = { version = "0.2.0", path = "./frame/collator-rewards", default-features = false }
 robonomics-subscription-primitives = { version = "0.1.0", path = "./frame/subscription/primitives", default-features = false }
+pallet-robonomics-subscription = { version = "0.1.0", path = "./frame/subscription", default-features = false }
 
 # Robonomics pallets (deprecated)
 pallet-robonomics-liability = { version = "0.12.0", path = "./frame/liability", default-features = false }

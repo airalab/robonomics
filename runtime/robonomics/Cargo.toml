@@ -69,6 +69,8 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
+pallet-robonomics-subscription.workspace = true
+robonomics-subscription-primitives.workspace = true
 robonomics-collator-rewards.workspace = true
 
 # cumulus dependencies
@@ -144,6 +146,8 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
   "pallet-robonomics-cps/std",
+  "pallet-robonomics-subscription/std",
+  "robonomics-subscription-primitives/std",
   "robonomics-collator-rewards/std",
   "pallet-sudo/std",
   "pallet-preimage/std",
@@ -198,6 +202,7 @@ runtime-benchmarks = [
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-cps/runtime-benchmarks",
+  "pallet-robonomics-subscription/runtime-benchmarks",
   "pallet-xcm-benchmarks/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
@@ -239,6 +244,7 @@ try-runtime = [
   "pallet-robonomics-liability/try-runtime",
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-subscription/try-runtime",
   "robonomics-collator-rewards/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",

@@ -587,6 +587,46 @@ impl pallet_robonomics_cps::Config for Runtime {
     type BenchmarkHelper = CpsBenchmarkHelper;
 }
 
+/// Local resource limits of subscriptions.
+///
+/// No limit provider exists yet, so local consumption is forbidden until a
+/// provider (for example CPS scopes) is wired in.
+pub struct NoLocalResourceLimits;
+
+impl robonomics_subscription_primitives::ResourceLimit for NoLocalResourceLimits {
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type ResourceId = robonomics_subscription_primitives::Resource;
+    type Limit = pallet_robonomics_subscription::Limit;
+
+    fn limit(_local: &Self::LocalId, _resource: Self::ResourceId) -> Option<Self::Limit> {
+        None
+    }
+}
+
+parameter_types! {
+    /// Network capacity reserved for subscription Transaction rates:
+    /// 1 XRT per second, in Wn per millisecond.
+    pub const MaxSubscriptionTransactionRate: Balance = XRT / 1_000;
+    /// Idle time a Transaction bucket may accumulate, in milliseconds.
+    pub const TransactionBurstPeriod: u64 = 2 * MILLISECS_PER_BLOCK;
+    /// Granularity of the subscription expiration agenda, in milliseconds.
+    pub const ExpirationBucketSize: u64 = MILLISECS_PER_BLOCK;
+}
+
+impl pallet_robonomics_subscription::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Time = Timestamp;
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type ResourceLimits = NoLocalResourceLimits;
+    type TransactionBurstPeriod = TransactionBurstPeriod;
+    type MaxSubscriptionTransactionRate = MaxSubscriptionTransactionRate;
+    type MaxResources = ConstU32<3>;
+    type ExpirationBucketSize = ExpirationBucketSize;
+    type MaxExpirationsPerBucket = ConstU32<64>;
+    type MaxExpirationsPerBlock = ConstU32<128>;
+    type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_digital_twin::WeightInfo<Runtime>;
@@ -699,6 +739,9 @@ mod runtime {
 
     #[runtime::pallet_index(57)]
     pub type CPS = pallet_robonomics_cps;
+
+    #[runtime::pallet_index(58)]
+    pub type Subscription = pallet_robonomics_subscription;
 
     //
     // XCM support pallets.
