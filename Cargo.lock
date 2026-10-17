@@ -6225,6 +6225,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "robonomics-subscription-primitives"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
