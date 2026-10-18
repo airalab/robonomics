@@ -59,7 +59,7 @@ paid regardless of the pot's state.
 ## Wiring example
 
 ```rust,ignore
-use frame_support::parameter_types;
+use polkadot_sdk::frame_support::parameter_types;
 use robonomics_collator_rewards::AuthorRewards;
 
 parameter_types! {

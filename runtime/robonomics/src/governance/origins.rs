@@ -17,14 +17,19 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Custom origins for governance interventions.
 
+use polkadot_sdk::frame_support;
+
 pub use pallet_custom_origins::*;
 
 #[frame_support::pallet]
 pub mod pallet_custom_origins {
-    use frame_support::pallet_prelude::*;
+
+    use polkadot_sdk::frame_support::pallet_prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {}
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {}
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);

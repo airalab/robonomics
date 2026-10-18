@@ -97,3 +97,47 @@ jobs:
           robonomics-compressed-info.json
           robonomics-metadata.json
           robonomics-diff.txt
+
+  docker:
+    needs: [tests, check-runtime]
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v5
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Docker meta
+      id: docker_meta
+      uses: docker/metadata-action@v5
+      with:
+        images: robonomics/robonomics
+        tags: type=sha # add git short SHA as Docker tag
+
+    - uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+    - run: |
+        nix develop -c ./scripts/development-chain.sh
+        cp dev.json docker/dev.json
+        cp chain-spec/polkadot-parachain.raw.json docker/parachain.json
+
+    - name: Build & Push docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: docker
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        tags: ${{ steps.docker_meta.outputs.tags }}
+        push: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

@@ -295,6 +295,8 @@
 //! ```
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::{frame_support, frame_system};
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod migration;
@@ -307,10 +309,10 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 use core::fmt::Debug;
-use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::frame_support::{traits::ConstU32, BoundedVec};
+use polkadot_sdk::sp_std::prelude::*;
 use scale_info::TypeInfo;
-use sp_std::prelude::*;
 
 /// Domain separator of the signed [`NodeIdentityPermit`] payload, the first
 /// element of the tuple built by [`Pallet::identity_permit_payload`].
@@ -742,18 +744,22 @@ fn create_node_identity_weight<T: Config>(
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
-    use sp_runtime::{
+    use polkadot_sdk::frame_support::pallet_prelude::*;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_runtime::{
         traits::{IdentifyAccount, Verify, Zero},
         Saturating,
     };
+    use polkadot_sdk::{frame_support, frame_system};
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Weights of this pallet's calls.
         type WeightInfo: WeightInfo;

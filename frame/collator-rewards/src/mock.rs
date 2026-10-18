@@ -17,7 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Minimal mock runtime for testing `AuthorRewards`.
 
-use frame_support::{construct_runtime, derive_impl, parameter_types};
+use polkadot_sdk::{frame_system, pallet_balances, sp_io};
+
+use polkadot_sdk::frame_support::{construct_runtime, derive_impl, parameter_types};
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -50,7 +52,7 @@ parameter_types! {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    use sp_runtime::BuildStorage;
+    use polkadot_sdk::sp_runtime::BuildStorage;
     frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()

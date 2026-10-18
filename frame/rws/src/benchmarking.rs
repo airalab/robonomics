@@ -20,11 +20,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as Rws, *};
-use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
-use frame_system::RawOrigin;
-use sp_runtime::traits::StaticLookup;
-use sp_std::prelude::*;
+use polkadot_sdk::frame_benchmarking::v2::*;
+use polkadot_sdk::frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
+use polkadot_sdk::frame_system::RawOrigin;
+use polkadot_sdk::sp_runtime::traits::StaticLookup;
+use polkadot_sdk::sp_std::prelude::*;
 
 const SEED: u32 = 0;
 
@@ -37,8 +37,11 @@ fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 #[benchmarks]
 mod benchmarks {
     use super::*;
+    use polkadot_sdk::frame_support;
     #[cfg(test)]
-    use frame_system::RawOrigin;
+    use polkadot_sdk::frame_system;
+    #[cfg(test)]
+    use polkadot_sdk::frame_system::RawOrigin;
 
     #[benchmark]
     fn bid() {

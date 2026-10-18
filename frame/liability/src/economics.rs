@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
-use frame_support::traits::Currency;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::frame_support::traits::Currency;
 use scale_info::TypeInfo;
 
 /// Simple market as approach: liability has a price of execution.

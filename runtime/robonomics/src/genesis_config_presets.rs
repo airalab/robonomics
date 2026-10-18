@@ -17,14 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Runtime genesis config presets
 
+use polkadot_sdk::sp_genesis_builder;
+
 use crate::common::{currency::XRT, xcm_version, AccountId, AuraId};
 use crate::*;
 
 use alloc::{vec, vec::Vec};
-use cumulus_primitives_core::ParaId;
-use frame_support::build_struct_json_patch;
-use sp_genesis_builder::PresetId;
-use sp_keyring::Sr25519Keyring;
+use polkadot_sdk::cumulus_primitives_core::ParaId;
+use polkadot_sdk::frame_support::build_struct_json_patch;
+use polkadot_sdk::sp_genesis_builder::PresetId;
+use polkadot_sdk::sp_keyring::Sr25519Keyring;
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2000);
 

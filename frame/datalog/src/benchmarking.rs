@@ -20,11 +20,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as Datalog, *};
-use frame_benchmarking::v2::*;
-use frame_support::pallet_prelude::{Get, MaxEncodedLen};
-use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
-use sp_std::prelude::*;
+use polkadot_sdk::frame_benchmarking::v2::*;
+use polkadot_sdk::frame_support::pallet_prelude::{Get, MaxEncodedLen};
+use polkadot_sdk::frame_system::RawOrigin;
+use polkadot_sdk::sp_std::prelude::*;
 
 fn setup_record<T: Config>() -> T::Record {
     let s = <T::Record as MaxEncodedLen>::max_encoded_len();
@@ -46,8 +46,9 @@ where
 #[benchmarks]
 mod benchmarks {
     use super::*;
+
     #[cfg(test)]
-    use frame_system::RawOrigin;
+    use polkadot_sdk::frame_system::RawOrigin;
 
     #[benchmark]
     fn record() -> Result<(), BenchmarkError> {

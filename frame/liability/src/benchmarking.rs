@@ -20,10 +20,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as Liability, *};
-use frame_benchmarking::v2::*;
-use frame_system::RawOrigin;
 use hex_literal::hex;
-use sp_std::prelude::*;
+use polkadot_sdk::frame_benchmarking::v2::*;
+use polkadot_sdk::frame_system::RawOrigin;
+use polkadot_sdk::sp_std::prelude::*;
 
 // IPFS raw hash (sha256)
 const IPFS_HASH: [u8; 32] =
@@ -34,9 +34,10 @@ const IPFS_HASH: [u8; 32] =
 mod benchmark_runtime {
     use super::*;
     use crate::{self as liability};
-    use frame_support::parameter_types;
-    use sp_core::H256;
-    use sp_runtime::{generic, traits::IdentityLookup, AccountId32};
+    use polkadot_sdk::frame_support::parameter_types;
+    use polkadot_sdk::sp_core::H256;
+    use polkadot_sdk::sp_runtime::{generic, traits::IdentityLookup, AccountId32};
+    use polkadot_sdk::{frame_support, frame_system, pallet_balances, sp_runtime};
 
     pub type Block = generic::Block<
         generic::Header<u32, sp_runtime::traits::BlakeTwo256>,
@@ -68,7 +69,7 @@ mod benchmark_runtime {
         type Nonce = u32;
         type Block = Block;
         type Hash = H256;
-        type Hashing = ::sp_runtime::traits::BlakeTwo256;
+        type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = AccountId32;
         type Lookup = IdentityLookup<Self::AccountId>;
         type RuntimeEvent = RuntimeEvent;
@@ -142,10 +143,10 @@ mod benchmarks {
     use crate::economics::SimpleMarket;
     use crate::signed::{SignedAgreement, SignedReport};
     use crate::technics::IPFS;
-    use frame_support::traits::Currency;
     use parity_scale_codec::{Decode, Encode};
-    use sp_core::sr25519;
-    use sp_runtime::{AccountId32, MultiSignature};
+    use polkadot_sdk::frame_support::traits::Currency;
+    use polkadot_sdk::sp_core::sr25519;
+    use polkadot_sdk::sp_runtime::{AccountId32, MultiSignature};
 
     fn dummy_signature() -> MultiSignature {
         MultiSignature::Sr25519(sr25519::Signature::from_raw([0u8; 64]))

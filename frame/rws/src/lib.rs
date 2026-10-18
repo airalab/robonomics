@@ -20,8 +20,10 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::Weight;
+use polkadot_sdk::frame_support;
+
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxEncodedLen};
+use polkadot_sdk::frame_support::pallet_prelude::Weight;
 use scale_info::TypeInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -114,12 +116,13 @@ impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
 
 pub mod migration {
     use super::*;
-    use frame_support::{
+    use polkadot_sdk::frame_support::{
         pallet_prelude::PhantomData,
         traits::{Get, UncheckedOnRuntimeUpgrade},
         BoundedVec,
     };
-    use sp_std::vec::Vec;
+    use polkadot_sdk::sp_std::vec::Vec;
+    use polkadot_sdk::{frame_support, frame_system};
 
     pub type MigrationToV1<T> = frame_support::migrations::VersionedMigration<
         0,
@@ -143,17 +146,18 @@ pub mod migration {
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::{
+    use polkadot_sdk::frame_support::{
         dispatch::GetDispatchInfo,
         pallet_prelude::*,
         traits::{Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable},
     };
-    use frame_system::pallet_prelude::*;
-    use sp_runtime::{
+    use polkadot_sdk::frame_system;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_runtime::{
         traits::{AtLeast32Bit, StaticLookup},
         DispatchResult,
     };
-    use sp_std::prelude::*;
+    use polkadot_sdk::sp_std::prelude::*;
 
     type BalanceOf<T> = <<T as Config>::AuctionCurrency as Currency<
         <T as frame_system::Config>::AccountId,
@@ -163,7 +167,9 @@ pub mod pallet {
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// Call subscription method.
         type Call: Parameter
             + UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin>
@@ -178,7 +184,8 @@ pub mod pallet {
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
         /// Reference call weight, general transaction consumes this weight.
         #[pallet::constant]
         type ReferenceCallWeight: Get<u64>;

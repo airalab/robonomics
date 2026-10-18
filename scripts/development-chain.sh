@@ -77,4 +77,7 @@ if [ "$1" == "docker" ]; then
 elif [ "$1" == "run" ]; then
     echo -e "${GREEN}Running...${NC}"
     polkadot-omni-node --chain "${SPEC_TMP_DIR}/dev.json" --dev
+else
+    echo -e "${GREEN}Copy dev.json to ${PWD} and exit${NC}"
+    cp "${SPEC_TMP_DIR}/dev.json" "$PWD"
 fi

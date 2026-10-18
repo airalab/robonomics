@@ -12,16 +12,14 @@ build = "build.rs"
 [build-dependencies]
 robonomics-runtime.workspace = true
 robonomics-runtime.optional = true
-sp-io.workspace = true
-sp-io.optional = true
-sp-state-machine.workspace = true
-sp-state-machine.optional = true
-sp-maybe-compressed-blob.workspace = true
-sp-maybe-compressed-blob.optional = true
-sc-executor.workspace = true
-sc-executor.optional = true
-sc-executor-common.workspace = true
-sc-executor-common.optional = true
+polkadot-sdk = { workspace = true, optional = true, features = [
+  "std",
+  "sp-io",
+  "sp-state-machine",
+  "sp-maybe-compressed-blob",
+  "sc-executor",
+  "sc-executor-common",
+] }
 parity-scale-codec.workspace = true
 parity-scale-codec.optional = true
 seahash.workspace = true
@@ -32,15 +30,7 @@ frame-metadata = { workspace = true, features = ["std", "unstable"] }
 parity-scale-codec.workspace = true
 
 [features]
-build-metadata = [
-  "robonomics-runtime",
-  "sp-io",
-  "sp-state-machine",
-  "sp-maybe-compressed-blob",
-  "sc-executor",
-  "sc-executor-common",
-  "parity-scale-codec",
-]
+build-metadata = ["robonomics-runtime", "polkadot-sdk", "parity-scale-codec"]
 check-metadata = ["build-metadata", "seahash"]
 # Build metadata for development runtime (have sudo, different constants, etc)
 dev-runtime = ["robonomics-runtime?/dev-runtime"]

@@ -44,9 +44,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::{frame_system, pallet_authorship};
+
 use core::marker::PhantomData;
 
-use frame_support::{
+use polkadot_sdk::frame_support::{
     defensive,
     dispatch::DispatchClass,
     traits::{
@@ -55,7 +57,7 @@ use frame_support::{
     },
     weights::Weight,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
+use polkadot_sdk::frame_system::pallet_prelude::BlockNumberFor;
 
 #[cfg(test)]
 mod mock;

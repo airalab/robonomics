@@ -17,20 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
-use frame_support::{
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::frame_support::{
     dispatch,
     traits::{BalanceStatus, ReservableCurrency},
 };
-use frame_system::offchain::AppCrypto;
-use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
+use polkadot_sdk::frame_system::offchain::AppCrypto;
 #[cfg(feature = "std")]
-use sp_core::crypto::{Pair, Public};
-use sp_runtime::{
+use polkadot_sdk::sp_core::crypto::{Pair, Public};
+use polkadot_sdk::sp_runtime::{
     traits::{IdentifyAccount, Verify},
     DispatchResult,
 };
-use sp_std::marker::PhantomData;
+use polkadot_sdk::sp_std::marker::PhantomData;
+use scale_info::TypeInfo;
 
 use crate::economics::SimpleMarket;
 use crate::traits::*;

@@ -124,6 +124,31 @@ cargo test -p pallet-robonomics-datalog
 cargo build --features runtime-benchmarks -p robonomics-runtime
 ```
 
+### Polkadot SDK Dependencies
+
+All Polkadot SDK crates (`sp-*`, `frame-*`, `pallet-*`, `cumulus-*`, `staging-xcm*`, ...) come from the
+[`polkadot-sdk`](https://crates.io/crates/polkadot-sdk) umbrella crate, pinned once in the root
+`Cargo.toml`. A member crate selects the SDK crates it needs through umbrella features:
+
+```toml
+polkadot-sdk = { workspace = true, features = ["frame-support", "frame-system"] }
+
+[features]
+std = ["polkadot-sdk/std"]
+runtime-benchmarks = ["polkadot-sdk/runtime-benchmarks", "polkadot-sdk/frame-benchmarking"]
+try-runtime = ["polkadot-sdk/try-runtime"]
+```
+
+In Rust code import the crate through the umbrella, e.g. `use polkadot_sdk::frame_support;` (`staging_*` crates keep
+their full names, e.g. `use polkadot_sdk::staging_xcm;`). Notes:
+
+- An import is only visible in the module that declares it, so nested modules need their own.
+- The `#[pallet::config]` macro only accepts the full path
+  `polkadot_sdk::frame_system::Config` for the supertrait and the `RuntimeEvent` bound.
+- `cumulus-pallet-parachain-system` (needed by `register_validate_block!`) and
+  `substrate-wasm-builder` (for the `metadata-hash` feature) remain direct dependencies.
+- To bump the SDK, change the single `polkadot-sdk` version in the root `Cargo.toml`.
+
 ## Running a Development Chain
 
 The `nix develop` shell ships with [`chain-spec-builder`](https://crates.io/crates/staging-chain-spec-builder) and

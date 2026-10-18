@@ -18,6 +18,8 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::frame_support;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -27,18 +29,22 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
-    use sp_core::H256;
-    use sp_std::collections::btree_map::BTreeMap;
+    use polkadot_sdk::frame_support::pallet_prelude::*;
+    use polkadot_sdk::frame_system;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_core::H256;
+    use polkadot_sdk::sp_std::collections::btree_map::BTreeMap;
 
     use super::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
     }
@@ -146,9 +152,10 @@ pub mod pallet {
 #[cfg(test)]
 mod tests {
     use crate::{self as digital_twin, *};
+    use polkadot_sdk::{frame_support, frame_system, sp_io};
 
-    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
-    use sp_runtime::{BuildStorage, DispatchError};
+    use polkadot_sdk::frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
+    use polkadot_sdk::sp_runtime::{BuildStorage, DispatchError};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
