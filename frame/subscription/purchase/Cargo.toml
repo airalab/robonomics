@@ -1,0 +1,55 @@
+[package]
+name = "pallet-robonomics-subscription-purchase"
+description = "Robonomics subscription purchase allocator: fixed-product acquisition of subscriptions."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["parity-scale-codec", "scale-info"]
+
+[dependencies]
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+sp-runtime.workspace = true
+frame-system.workspace = true
+frame-support.workspace = true
+robonomics-subscription-primitives.workspace = true
+
+[dev-dependencies]
+sp-io.workspace = true
+pallet-robonomics-subscription.workspace = true
+pallet-robonomics-subscription-governance.workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "sp-runtime/std",
+  "sp-io/std",
+  "frame-system/std",
+  "frame-support/std",
+  "robonomics-subscription-primitives/std",
+  "pallet-robonomics-subscription/std",
+  "pallet-robonomics-subscription-governance/std",
+]
+
+runtime-benchmarks = [
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "pallet-robonomics-subscription/runtime-benchmarks",
+  "pallet-robonomics-subscription-governance/runtime-benchmarks",
+]
+
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "sp-runtime/try-runtime",
+  "pallet-robonomics-subscription/try-runtime",
+  "pallet-robonomics-subscription-governance/try-runtime",
+]

@@ -15,6 +15,10 @@ limit provider     -> ResourceLimit         -> pallet-robonomics-subscription
 The shared interfaces live in
 [`robonomics-subscription-primitives`](./primitives).
 
+Allocation mechanisms live in separate pallets: [`governance`](./governance)
+(privileged assignment) and [`purchase`](./purchase) (a fixed product
+bought by a USDT deposit over XCM).
+
 ## Model
 
 - **One generation per owner.** Every allocation replaces the current

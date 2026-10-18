@@ -111,6 +111,7 @@ impl<T: frame_system::Config> WeightInfo<T> {
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
 	/// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	#[allow(dead_code)] // unsupported for the native asset, see `RobonomicsXcmWeight`
 	pub(crate) fn reserve_asset_deposited() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`

@@ -60,6 +60,7 @@ use sp_version::RuntimeVersion;
 mod genesis_config_presets;
 
 pub mod common;
+pub mod purchase_deposit;
 pub mod xcm_config;
 pub use common::{consensus::*, currency::*, fee::*, *};
 
@@ -627,6 +628,22 @@ impl pallet_robonomics_subscription::Config for Runtime {
     type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_robonomics_subscription_governance::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AllocateOrigin = EnsureRoot<AccountId>;
+    type Allocator = Subscription;
+    type WeightInfo = pallet_robonomics_subscription_governance::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_robonomics_subscription_purchase::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ManagementOrigin = EnsureRoot<AccountId>;
+    type Allocator = Subscription;
+    type Balance = Balance;
+    type DepositProduct = ConstU32<0>;
+    type WeightInfo = pallet_robonomics_subscription_purchase::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_digital_twin::WeightInfo<Runtime>;
@@ -742,6 +759,12 @@ mod runtime {
 
     #[runtime::pallet_index(58)]
     pub type Subscription = pallet_robonomics_subscription;
+
+    #[runtime::pallet_index(59)]
+    pub type SubscriptionGovernance = pallet_robonomics_subscription_governance;
+
+    #[runtime::pallet_index(60)]
+    pub type Purchase = pallet_robonomics_subscription_purchase;
 
     //
     // XCM support pallets.
@@ -1048,9 +1071,11 @@ impl_runtime_apis! {
     impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
         fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<xcm::VersionedAssetId>, xcm_runtime_apis::fees::Error> {
             use xcm::latest::prelude::*;
-            // Currently only the native token (LocalLocation) is accepted for XCM fees
-            // Additional assets can be added here when multi-asset fee payment is supported
-            let acceptable_assets = vec![AssetId(xcm_config::LocalLocation::get())];
+            // The native token and USDT (paid at a fixed rate) are accepted for XCM fees
+            let acceptable_assets = vec![
+                AssetId(xcm_config::LocalLocation::get()),
+                xcm_config::UsdtId::get(),
+            ];
             XcmPallet::query_acceptable_payment_assets(xcm_version, acceptable_assets)
         }
 

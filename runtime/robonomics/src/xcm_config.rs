@@ -16,9 +16,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
-    AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
-    ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, TREASURY_PALLET_ID,
+    purchase_deposit::PurchaseDepositTransactor, AccountId, AllPalletsWithSystem, Balances,
+    DealWithFees, MessageQueue, ParachainInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent,
+    RuntimeOrigin, WeightToFee, XcmPallet, XcmpQueue, COASE, TREASURY_PALLET_ID,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{
@@ -35,8 +35,8 @@ use xcm_builder::{
     AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
     AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyRecursively, DenyReserveTransferToRelayChain, DenyThenTry, DescribeAllTerminal,
-    DescribeFamily, EnsureXcmOrigin, FungibleAdapter, HashedDescription, IsConcrete,
-    ParentIsPreset, RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative,
+    DescribeFamily, EnsureXcmOrigin, FixedRateOfFungible, FungibleAdapter, HashedDescription,
+    IsConcrete, ParentIsPreset, RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative,
     SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
     SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents,
     WeightInfoBounds, WithComputedOrigin, XcmFeeManagerFromComponents,
@@ -57,6 +57,13 @@ parameter_types! {
     pub TreasuryAccount: AccountId = TREASURY_PALLET_ID.into_account_truncating();
     pub const NativeAssetId: AssetId = AssetId(LocalLocation::get());
     pub const NativeAssetFilter: AssetFilter = Wild(AllOf { fun: WildFungible, id: NativeAssetId::get() });
+    /// USDT as issued on AssetHub: `Assets` pallet (instance 50), asset 1984.
+    pub UsdtLocation: Location = Location::new(1, [Parachain(ASSET_HUB_ID), PalletInstance(50), GeneralIndex(1984)]);
+    pub UsdtId: AssetId = AssetId(UsdtLocation::get());
+    /// USDT is only accepted when it is deposited by its reserve, AssetHub.
+    pub UsdtFromAssetHub: (AssetFilter, Location) = (Wild(AllOf { fun: WildFungible, id: UsdtId::get() }), AssetHubLocation::get());
+    /// Execution fee in USDT (6 decimals): units per second of `ref_time` and per MB of proof size.
+    pub UsdtFeeRate: (AssetId, u128, u128) = (UsdtId::get(), 100_000, 100_000);
     pub const RelayAssetId: AssetId = AssetId(RelayLocation::get());
     pub const RelayLocation: Location = Location::parent();
     pub const LocalLocation: Location = Location::here();
@@ -93,7 +100,7 @@ pub type FungibleTransactor = FungibleAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (FungibleTransactor,);
+pub type AssetTransactors = (FungibleTransactor, PurchaseDepositTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -195,7 +202,7 @@ impl Config for XcmConfig {
     type XcmEventEmitter = XcmPallet;
     type AssetTransactor = AssetTransactors;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = ();
+    type IsReserve = xcm_builder::Case<UsdtFromAssetHub>;
     type IsTeleporter = TrustedTeleporters;
     type UniversalLocation = UniversalLocation;
     type Barrier = Barrier;
@@ -204,7 +211,10 @@ impl Config for XcmConfig {
         RuntimeCall,
         MaxInstructions,
     >;
-    type Trader = UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>;
+    type Trader = (
+        UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>,
+        FixedRateOfFungible<UsdtFeeRate, ()>,
+    );
     type ResponseHandler = XcmPallet;
     type AssetTrap = XcmPallet;
     type SubscriptionService = XcmPallet;

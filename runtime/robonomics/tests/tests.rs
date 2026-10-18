@@ -261,3 +261,125 @@ mod cps_view_functions {
         });
     }
 }
+
+mod subscription_purchase_xcm {
+    use frame_support::{assert_ok, BoundedVec};
+    use pallet_robonomics_subscription::{Limit, Subscriptions};
+    use robonomics_runtime::{
+        xcm_config::{AssetHubLocation, LocationToAccountId, UsdtId, XcmConfig},
+        AccountId, Purchase, Runtime, RuntimeCall, RuntimeOrigin,
+    };
+    use robonomics_subscription_primitives::{Resource, ResourceAllocation};
+    use xcm::latest::prelude::*;
+    use xcm_executor::{traits::ConvertLocation, XcmExecutor};
+
+    const USER: [u8; 32] = [7u8; 32];
+    const PRICE: u128 = 1_000_000;
+    const FEE_BUDGET: u128 = PRICE / 10;
+
+    /// The user as seen from this chain: an account of AssetHub.
+    fn user_location() -> Location {
+        Location::new(
+            1,
+            [
+                Parachain(1000),
+                AccountId32 {
+                    network: None,
+                    id: USER,
+                },
+            ],
+        )
+    }
+
+    fn user_account() -> AccountId {
+        LocationToAccountId::convert_location(&user_location()).expect("location converts")
+    }
+
+    fn usdt(amount: u128) -> Asset {
+        (UsdtId::get(), amount).into()
+    }
+
+    fn create_product(rate: u128) {
+        assert_ok!(Purchase::create_product(
+            RuntimeOrigin::root(),
+            PRICE,
+            60_000,
+            BoundedVec::truncate_from(vec![ResourceAllocation {
+                resource: Resource::Transaction,
+                limit: Limit::Transaction(rate),
+            }]),
+        ));
+    }
+
+    /// Message AssetHub sends to deposit `deposit` USDT to the user.
+    fn deposit_message(deposit: u128) -> Xcm<RuntimeCall> {
+        Xcm(vec![
+            ReserveAssetDeposited(usdt(deposit).into()),
+            BuyExecution {
+                fees: usdt(FEE_BUDGET),
+                weight_limit: Unlimited,
+            },
+            DepositAsset {
+                assets: Wild(AllCounted(1)),
+                beneficiary: user_location(),
+            },
+        ])
+    }
+
+    fn execute(origin: Location, message: Xcm<RuntimeCall>) -> Outcome {
+        let mut id = [0u8; 32];
+        XcmExecutor::<XcmConfig>::prepare_and_execute(
+            origin,
+            message,
+            &mut id,
+            Weight::from_parts(10_000_000_000, 1_000_000),
+            Weight::zero(),
+        )
+    }
+
+    #[test]
+    fn deposit_from_asset_hub_buys_the_product() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(1_000);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Complete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_some());
+        });
+    }
+
+    #[test]
+    fn deposit_below_the_price_is_rejected() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(1_000);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(PRICE - 1));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+
+    #[test]
+    fn deposit_is_rejected_when_the_allocation_fails() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            // Far above the capacity reserved for subscriptions.
+            create_product(u128::MAX / 2);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+
+    #[test]
+    fn deposit_is_rejected_from_other_chains() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(1_000);
+            let sibling = Location::new(1, [Parachain(2000)]);
+            let outcome = execute(sibling, deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+}

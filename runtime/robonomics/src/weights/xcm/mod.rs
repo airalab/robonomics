@@ -69,7 +69,10 @@ impl<Call> XcmWeightInfo<Call> for RobonomicsXcmWeight<Call> {
         assets.weigh_assets(XcmFungibleWeight::<Runtime>::withdraw_asset())
     }
     fn reserve_asset_deposited(assets: &Assets) -> Weight {
-        assets.weigh_assets(XcmFungibleWeight::<Runtime>::reserve_asset_deposited())
+        // The benchmarked weight is `Weight::MAX` because the native asset is
+        // never a reserve deposit. USDT from AssetHub is, and minting its
+        // holding is storage-free like a teleport, which is weighed instead.
+        assets.weigh_assets(XcmFungibleWeight::<Runtime>::receive_teleported_asset())
     }
     fn receive_teleported_asset(assets: &Assets) -> Weight {
         assets.weigh_assets(XcmFungibleWeight::<Runtime>::receive_teleported_asset())

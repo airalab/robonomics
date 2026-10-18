@@ -4896,6 +4896,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-robonomics-subscription-governance"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-robonomics-subscription",
+ "parity-scale-codec",
+ "robonomics-subscription-primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-robonomics-subscription-purchase"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-robonomics-subscription",
+ "pallet-robonomics-subscription-governance",
+ "parity-scale-codec",
+ "robonomics-subscription-primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-scheduler"
 version = "51.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6170,6 +6199,8 @@ dependencies = [
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
  "pallet-robonomics-subscription",
+ "pallet-robonomics-subscription-governance",
+ "pallet-robonomics-subscription-purchase",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
