@@ -20,10 +20,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as Launch, *};
-use frame_benchmarking::v2::*;
-use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
-use sp_runtime::Vec;
+use polkadot_sdk::frame_benchmarking::v2::*;
+use polkadot_sdk::frame_system::RawOrigin;
+use polkadot_sdk::sp_runtime::Vec;
 
 const SEED: u32 = 0;
 
@@ -50,8 +50,9 @@ fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str> {
 #[benchmarks]
 mod benchmarks {
     use super::*;
+
     #[cfg(test)]
-    use frame_system::RawOrigin;
+    use polkadot_sdk::frame_system::RawOrigin;
 
     #[benchmark]
     fn launch() -> Result<(), BenchmarkError> {

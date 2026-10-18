@@ -15,23 +15,28 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+use polkadot_sdk::{
+    cumulus_pallet_xcm, cumulus_pallet_xcmp_queue, cumulus_primitives_utility, frame_system,
+    pallet_xcm, polkadot_runtime_common, sp_runtime, staging_xcm_builder,
+};
+
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
     XcmpQueue, COASE, TREASURY_PALLET_ID,
 };
-use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
-use frame_support::{
+use polkadot_sdk::cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
+use polkadot_sdk::frame_support::{
     pallet_prelude::PhantomData,
     parameter_types,
     traits::{Contains, Disabled, Equals, Everything, Nothing, TransformOrigin},
 };
-use polkadot_parachain_primitives::primitives::Sibling;
-use sp_runtime::traits::{AccountIdConversion, ConstU32};
+use polkadot_sdk::polkadot_parachain_primitives::primitives::Sibling;
+use polkadot_sdk::sp_runtime::traits::{AccountIdConversion, ConstU32};
 
 // Polkadot imports
-use xcm::latest::prelude::*;
-use xcm_builder::{
+use polkadot_sdk::staging_xcm::latest::prelude::*;
+use polkadot_sdk::staging_xcm_builder::{
     AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
     AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyRecursively, DenyReserveTransferToRelayChain, DenyThenTry, DescribeAllTerminal,
@@ -41,7 +46,7 @@ use xcm_builder::{
     SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, UsingComponents,
     WeightInfoBounds, WithComputedOrigin, XcmFeeManagerFromComponents,
 };
-use xcm_executor::{Config, XcmExecutor};
+use polkadot_sdk::staging_xcm_executor::{Config, XcmExecutor};
 
 pub const ASSET_HUB_ID: u32 = 1000;
 
@@ -180,7 +185,7 @@ pub type Barrier = TrailingSetTopicAsId<
     >,
 >;
 
-pub type TrustedTeleporters = xcm_builder::Case<AssetHubTrustedTeleporter>;
+pub type TrustedTeleporters = staging_xcm_builder::Case<AssetHubTrustedTeleporter>;
 
 pub type WaivedLocations = (
     Equals<LocalLocation>,
@@ -221,7 +226,7 @@ impl Config for XcmConfig {
     type CallDispatcher = RuntimeCall;
     type SafeCallFilter = Everything;
     type Aliasers = Nothing;
-    type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
+    type TransactionalProcessor = staging_xcm_builder::FrameTransactionalProcessor;
     type HrmpNewChannelOpenRequestHandler = ();
     type HrmpChannelAcceptedHandler = ();
     type HrmpChannelClosingHandler = ();
@@ -322,7 +327,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use polkadot_parachain_primitives::primitives::LOWEST_PUBLIC_ID;
+
+    use polkadot_sdk::polkadot_parachain_primitives::primitives::LOWEST_PUBLIC_ID;
 
     #[test]
     fn all_sibling_system_parachains_works() {

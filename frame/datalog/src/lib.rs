@@ -21,6 +21,8 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::from_over_into)]
 
+use polkadot_sdk::frame_support;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -31,10 +33,11 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 #[allow(clippy::module_inception)]
 pub mod pallet {
-    use frame_support::{pallet_prelude::*, traits::Time};
-    use frame_system::pallet_prelude::*;
     use parity_scale_codec::{Decode, Encode};
-    use sp_std::prelude::*;
+    use polkadot_sdk::frame_support::{pallet_prelude::*, traits::Time};
+    use polkadot_sdk::frame_system;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_std::prelude::*;
 
     use super::*;
 
@@ -42,14 +45,17 @@ pub mod pallet {
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + TypeInfo {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config + TypeInfo {
         /// Current time source.
         type Time: Time;
         /// Datalog record data type.
         type Record: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
         /// Data log window size
         #[pallet::constant]
         type WindowSize: Get<u64>;
@@ -249,9 +255,12 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types, BoundedVec};
+    use polkadot_sdk::frame_support::{
+        assert_err, assert_ok, derive_impl, parameter_types, BoundedVec,
+    };
+    use polkadot_sdk::{frame_support, frame_system, pallet_timestamp, sp_io};
 
-    use sp_runtime::{BuildStorage, DispatchError};
+    use polkadot_sdk::sp_runtime::{BuildStorage, DispatchError};
 
     use crate::{self as datalog, *};
 

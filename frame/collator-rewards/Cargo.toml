@@ -9,31 +9,25 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-sp-runtime = { workspace = true }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-pallet-authorship = { workspace = true }
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "sp-runtime",
+  "frame-support",
+  "frame-system",
+  "pallet-authorship",
+] }
 
 [dev-dependencies]
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
-pallet-balances = { workspace = true, features = ["std"] }
+polkadot-sdk = { workspace = true, features = [
+  "std",
+  "sp-core",
+  "sp-io",
+  "pallet-balances",
+] }
 
 [features]
 default = ["std"]
-std = [
-  "parity-scale-codec/std",
-  "scale-info/std",
-  "sp-runtime/std",
-  "frame-support/std",
-  "frame-system/std",
-  "pallet-authorship/std",
-]
-try-runtime = [
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-  "pallet-authorship/try-runtime",
-  "sp-runtime/try-runtime",
-]
+std = ["parity-scale-codec/std", "scale-info/std", "polkadot-sdk/std"]
+
+try-runtime = ["polkadot-sdk/try-runtime"]

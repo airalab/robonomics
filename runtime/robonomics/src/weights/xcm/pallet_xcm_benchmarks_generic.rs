@@ -56,7 +56,9 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
-use frame_support::{traits::Get, weights::Weight};
+use polkadot_sdk::{frame_support, frame_system};
+
+use polkadot_sdk::frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
 /// Weight functions for `pallet_xcm_benchmarks::generic`.

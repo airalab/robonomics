@@ -17,8 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! A set of common values used in robonomics runtime.
 
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{
+use polkadot_sdk::{sp_core, sp_runtime};
+
+pub use polkadot_sdk::sp_consensus_aura::sr25519::AuthorityId as AuraId;
+pub use polkadot_sdk::sp_runtime::{
     generic,
     traits::{IdentifyAccount, Verify},
 };
@@ -45,7 +47,8 @@ pub type Hash = sp_core::H256;
 /// Money matters.
 pub mod currency {
     use super::*;
-    use frame_support::PalletId;
+
+    use polkadot_sdk::frame_support::PalletId;
 
     /// XRT is Robonomics native currency.
     ///
@@ -70,7 +73,8 @@ pub mod currency {
     mod tests {
         use super::{AccountId, TREASURY_PALLET_ID};
         use hex_literal::hex;
-        use sp_runtime::traits::AccountIdConversion;
+
+        use polkadot_sdk::sp_runtime::traits::AccountIdConversion;
 
         #[test]
         fn treasury_account_matched() {
@@ -88,15 +92,16 @@ pub mod currency {
 /// Fee-related.
 pub mod fee {
     use super::*;
-    use frame_support::{
+    use polkadot_sdk::frame_support;
+    use polkadot_sdk::frame_support::{
         pallet_prelude::Weight,
         weights::{
             constants::ExtrinsicBaseWeight, FeePolynomial, WeightToFeeCoefficient,
             WeightToFeeCoefficients, WeightToFeePolynomial,
         },
     };
+    use polkadot_sdk::sp_runtime::Perbill;
     use smallvec::smallvec;
-    use sp_runtime::Perbill;
 
     /// The block saturation level. Fees will be updated based on this value.
     pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
@@ -167,8 +172,9 @@ pub mod fee {
 /// Consensus-related.
 pub mod consensus {
     use super::BlockNumber;
-    use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
-    use sp_runtime::Perbill;
+    use polkadot_sdk::cumulus_primitives_core;
+    use polkadot_sdk::frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
+    use polkadot_sdk::sp_runtime::Perbill;
 
     /// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
     /// relay chain.
@@ -217,5 +223,5 @@ pub mod xcm_version {
     /// The default XCM version to set in genesis config.
     ///
     /// Note: depend of current `xcm` dependency version.
-    pub const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
+    pub const SAFE_XCM_VERSION: u32 = polkadot_sdk::staging_xcm::prelude::XCM_VERSION;
 }

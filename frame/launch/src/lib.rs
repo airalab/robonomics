@@ -18,6 +18,8 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::frame_support;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
@@ -27,18 +29,21 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::frame_support::pallet_prelude::*;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
 
     use super::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// Robot launch parameter data type.
         type Parameter: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
     }
@@ -79,9 +84,10 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use frame_support::{assert_ok, derive_impl, parameter_types, BoundedVec};
+    use polkadot_sdk::frame_support::{assert_ok, derive_impl, parameter_types, BoundedVec};
+    use polkadot_sdk::{frame_support, frame_system, pallet_timestamp, sp_io};
 
-    use sp_runtime::BuildStorage;
+    use polkadot_sdk::sp_runtime::BuildStorage;
 
     use crate::{self as launch, *};
 

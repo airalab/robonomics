@@ -28,9 +28,14 @@
 //!   to whitelist call hashes for the fast track (see `WhitelistOrigin`
 //!   below). It has no other privileges.
 
+use polkadot_sdk::{
+    frame_support, frame_system, pallet_collective, pallet_conviction_voting, pallet_preimage,
+    pallet_referenda, pallet_scheduler, pallet_whitelist,
+};
+
 use super::*;
 use core::cmp::Ordering;
-use frame_support::traits::{
+use polkadot_sdk::frame_support::traits::{
     fungible::HoldConsideration, EitherOf, EitherOfDiverse, LinearStoragePrice, PrivilegeCmp,
 };
 
