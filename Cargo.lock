@@ -10918,7 +10918,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-datalog"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
@@ -10927,7 +10927,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-digital-twin"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
@@ -10936,7 +10936,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-launch"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
@@ -10945,7 +10945,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-liability"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "hex-literal 1.1.0",
  "parity-scale-codec",
@@ -10955,7 +10955,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
@@ -14890,7 +14890,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-collator-rewards"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
