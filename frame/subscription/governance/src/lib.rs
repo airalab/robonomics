@@ -14,6 +14,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+///////////////////////////////////////////////////////////////////////////////
 //! # Robonomics Subscription Governance Allocator
 //!
 //! A privileged allocation mechanism for the subscription pallet. A

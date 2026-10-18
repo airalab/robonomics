@@ -14,6 +14,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+///////////////////////////////////////////////////////////////////////////////
 //! Inbound transfers of the subscription payment asset (USDT from AssetHub).
 //!
 //! The asset never becomes a local asset and nothing is held on this chain:

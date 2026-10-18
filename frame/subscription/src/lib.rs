@@ -14,6 +14,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+///////////////////////////////////////////////////////////////////////////////
 //! # Robonomics Subscription Pallet
 //!
 //! The canonical runtime accounting layer for time-limited platform

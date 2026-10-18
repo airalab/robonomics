@@ -14,6 +14,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+///////////////////////////////////////////////////////////////////////////////
 //! # Robonomics Subscription Purchase Allocator
 //!
 //! Sells a predefined subscription product. A product is a

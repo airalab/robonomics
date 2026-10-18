@@ -14,6 +14,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+///////////////////////////////////////////////////////////////////////////////
 //! Tests for pallet-robonomics-subscription-purchase
 
 use crate::{self as pallet_purchase, *};
