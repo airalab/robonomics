@@ -95,7 +95,7 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
-    spec_version: 52,
+    spec_version: 53,
     impl_version: 1,
     system_version: 1,
     authoring_version: 1,
