@@ -18,7 +18,10 @@
 //! Weight functions of `pallet-robonomics-transaction`.
 
 use core::marker::PhantomData;
-use frame_support::{traits::Get, weights::Weight};
+use polkadot_sdk::{
+    frame_support::{traits::Get, weights::Weight},
+    frame_system,
+};
 
 /// Weights of the transaction extension.
 ///

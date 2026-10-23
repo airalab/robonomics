@@ -14,15 +14,20 @@ ignored = ["parity-scale-codec", "scale-info"]
 [dependencies]
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-sp-runtime.workspace = true
-frame-system.workspace = true
-frame-support.workspace = true
-pallet-transaction-payment.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "sp-runtime",
+  "frame-system",
+  "frame-support",
+  "pallet-transaction-payment",
+] }
 robonomics-subscription-primitives.workspace = true
 
 [dev-dependencies]
-sp-io.workspace = true
-pallet-balances.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "std",
+  "sp-io",
+  "pallet-balances",
+] }
 pallet-robonomics-cps.workspace = true
 pallet-robonomics-subscription.workspace = true
 
@@ -31,33 +36,21 @@ default = ["std"]
 std = [
   "parity-scale-codec/std",
   "scale-info/std",
-  "sp-runtime/std",
-  "sp-io/std",
-  "frame-system/std",
-  "frame-support/std",
-  "pallet-transaction-payment/std",
-  "pallet-balances/std",
+  "polkadot-sdk/std",
   "pallet-robonomics-cps/std",
   "pallet-robonomics-subscription/std",
   "robonomics-subscription-primitives/std",
 ]
 
 runtime-benchmarks = [
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
-  "pallet-transaction-payment/runtime-benchmarks",
-  "pallet-balances/runtime-benchmarks",
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
   "pallet-robonomics-cps/runtime-benchmarks",
   "pallet-robonomics-subscription/runtime-benchmarks",
 ]
 
 try-runtime = [
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-  "sp-runtime/try-runtime",
-  "pallet-transaction-payment/try-runtime",
-  "pallet-balances/try-runtime",
+  "polkadot-sdk/try-runtime",
   "pallet-robonomics-cps/try-runtime",
   "pallet-robonomics-subscription/try-runtime",
 ]

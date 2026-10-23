@@ -18,9 +18,12 @@
 //! Weight functions of `pallet-robonomics-subscription`.
 
 use core::marker::PhantomData;
-use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+use polkadot_sdk::{
+    frame_support::{
+        traits::Get,
+        weights::{constants::RocksDbWeight, Weight},
+    },
+    frame_system,
 };
 
 /// Weights of the pallet's operations.

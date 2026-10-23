@@ -80,6 +80,8 @@
 
 extern crate alloc;
 
+use polkadot_sdk::{frame_support, frame_system, pallet_transaction_payment};
+
 mod extension;
 pub mod priority;
 mod usage;
@@ -123,17 +125,20 @@ pub const PAYMENT_MISMATCH: u8 = 3;
 #[allow(clippy::module_inception)]
 pub mod pallet {
     use super::*;
-    use frame_support::pallet_prelude::*;
+    use polkadot_sdk::frame_support::pallet_prelude::*;
+    use polkadot_sdk::sp_runtime::traits::Convert;
     use robonomics_subscription_primitives::{
         Resource, ResourceAccounting, ResourceAuthorization, ResourceGeneration,
     };
-    use sp_runtime::traits::Convert;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
+    pub trait Config:
+        polkadot_sdk::frame_system::Config + polkadot_sdk::pallet_transaction_payment::Config
+    {
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Authorization context signed by the user, for example
         /// `AuthorizationContext<AccountId, NodeId>`.

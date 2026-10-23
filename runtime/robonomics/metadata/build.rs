@@ -116,9 +116,10 @@ fn check_metadata() {
 #[cfg(feature = "build-metadata")]
 fn main() {
     use parity_scale_codec::{Decode, Encode};
-    use sc_executor::{WasmExecutionMethod, WasmExecutor};
-    use sc_executor_common::runtime_blob::RuntimeBlob;
-    use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
+    use polkadot_sdk::sc_executor::{WasmExecutionMethod, WasmExecutor};
+    use polkadot_sdk::sc_executor_common::runtime_blob::RuntimeBlob;
+    use polkadot_sdk::sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
+    use polkadot_sdk::{sc_executor, sp_io, sp_state_machine};
 
     // The way to get metadata is to call the runtime's `Metadata` runtime API.
     // This approach is inspired by subwasm (https://github.com/chevdor/subwasm).

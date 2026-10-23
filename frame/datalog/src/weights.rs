@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Pallet weights trait & utils.
 
-use frame_support::weights::Weight;
+use polkadot_sdk::frame_support::weights::Weight;
 
 /// Weight information for pallet extrinsics.
 ///

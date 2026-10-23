@@ -14,34 +14,28 @@ ignored = ["parity-scale-codec", "scale-info"]
 [dependencies]
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-sp-runtime.workspace = true
-frame-system.workspace = true
-frame-support.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "sp-runtime",
+  "frame-system",
+  "frame-support",
+] }
 robonomics-subscription-primitives.workspace = true
 
 [dev-dependencies]
-sp-io.workspace = true
+polkadot-sdk = { workspace = true, features = ["std", "sp-io"] }
 
 [features]
 default = ["std"]
 std = [
   "parity-scale-codec/std",
   "scale-info/std",
-  "sp-runtime/std",
-  "sp-io/std",
-  "frame-system/std",
-  "frame-support/std",
+  "polkadot-sdk/std",
   "robonomics-subscription-primitives/std",
 ]
 
 runtime-benchmarks = [
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
 ]
 
-try-runtime = [
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-  "sp-runtime/try-runtime",
-]
+try-runtime = ["polkadot-sdk/try-runtime"]

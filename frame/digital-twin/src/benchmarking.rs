@@ -20,10 +20,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as DigitalTwin, *};
-use frame_benchmarking::v2::*;
-use frame_system::RawOrigin;
-use sp_core::H256;
-use sp_std::prelude::*;
+use polkadot_sdk::frame_benchmarking::v2::*;
+use polkadot_sdk::frame_system::RawOrigin;
+use polkadot_sdk::sp_core::H256;
+use polkadot_sdk::sp_std::prelude::*;
 
 const SEED: u32 = 0;
 
@@ -31,7 +31,9 @@ const SEED: u32 = 0;
 mod benchmarks {
     use super::*;
     #[cfg(test)]
-    use frame_system::RawOrigin;
+    use polkadot_sdk::frame_system;
+    #[cfg(test)]
+    use polkadot_sdk::frame_system::RawOrigin;
 
     #[benchmark]
     fn create() -> Result<(), BenchmarkError> {

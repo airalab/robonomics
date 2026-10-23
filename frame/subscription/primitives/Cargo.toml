@@ -11,8 +11,8 @@ license.workspace = true
 [dependencies]
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-sp-runtime.workspace = true
+polkadot-sdk = { workspace = true, features = ["sp-runtime"] }
 
 [features]
 default = ["std"]
-std = ["parity-scale-codec/std", "scale-info/std", "sp-runtime/std"]
+std = ["parity-scale-codec/std", "scale-info/std", "polkadot-sdk/std"]

@@ -36,6 +36,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::frame_support;
+
 #[cfg(test)]
 mod tests;
 pub mod weights;
@@ -47,8 +49,8 @@ pub use weights::WeightInfo;
 #[allow(clippy::module_inception)]
 pub mod pallet {
     use super::WeightInfo;
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::frame_support::pallet_prelude::*;
+    use polkadot_sdk::frame_system::{self, pallet_prelude::*};
     use robonomics_subscription_primitives::{SubscriptionAllocation, SubscriptionAllocator};
 
     /// Allocation accepted by the configured [`Config::Allocator`].
@@ -68,9 +70,11 @@ pub mod pallet {
     >;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// The overarching event type.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        #[allow(deprecated)]
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Origin allowed to allocate and revoke subscriptions.
         type AllocateOrigin: EnsureOrigin<Self::RuntimeOrigin>;

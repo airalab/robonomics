@@ -54,7 +54,9 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
-use frame_support::{traits::Get, weights::Weight};
+use polkadot_sdk::{frame_support, frame_system, pallet_transaction_payment};
+
+use polkadot_sdk::frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
 /// Weight functions for `pallet_transaction_payment`.

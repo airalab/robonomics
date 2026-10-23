@@ -65,13 +65,18 @@
 //! [`crate::MAX_META_SIZE`] is truncated to exactly that many bytes before
 //! it is written into the new `Meta` map; the trailing bytes are dropped.
 
+#[cfg(feature = "try-runtime")]
+use polkadot_sdk::sp_runtime;
+use polkadot_sdk::{frame_support, frame_system, sp_std};
+
 use crate::{
     Access, Children, Config, MaxChildrenPerNode, MaxScopeDepth, Meta, NextScopeId, NodeId,
     NodeInfo, NodeMeta, Pallet, Payload, ScopeId, ScopeInfo, Scopes, MAX_ACCESS_ENTRIES_PER_SCOPE,
     MAX_META_SIZE,
 };
 use core::fmt::Debug;
-use frame_support::{
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use polkadot_sdk::frame_support::{
     migrations::VersionedMigration,
     pallet_prelude::{ConstU32, PhantomData},
     storage_alias,
@@ -79,10 +84,9 @@ use frame_support::{
     weights::Weight,
     Blake2_128Concat, BoundedVec,
 };
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use sp_std::collections::btree_map::BTreeMap;
+use polkadot_sdk::sp_std::collections::btree_map::BTreeMap;
 #[cfg(feature = "try-runtime")]
-use sp_std::vec::Vec;
+use polkadot_sdk::sp_std::vec::Vec;
 
 /// Shared bound for v1's `meta`/`payload` fields (2048 bytes), used only to
 /// decode pre-migration storage. Kept separate from [`crate::MaxMetaSize`]
@@ -402,6 +406,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
 mod tests {
     use super::*;
     use crate::tests::{new_test_ext, Runtime};
+    use polkadot_sdk::sp_std;
 
     /// Build a v1 `OldNode` entry directly in storage (bypassing the v2
     /// pallet API entirely, which no longer knows how to write this shape),

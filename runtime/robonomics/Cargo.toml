@@ -16,50 +16,65 @@ smallvec.workspace = true
 scale-info.workspace = true
 serde_json = { features = ["alloc"], workspace = true }
 
-# primitives
-sp-api.workspace = true
-sp-block-builder.workspace = true
-sp-core.workspace = true
-sp-inherents.workspace = true
-sp-offchain.workspace = true
-sp-runtime.workspace = true
-sp-session.workspace = true
-sp-std.workspace = true
-sp-transaction-pool.workspace = true
-sp-version.workspace = true
-sp-genesis-builder.workspace = true
-sp-consensus-aura.workspace = true
-sp-keyring.workspace = true
-
-# standard dependencies
-pallet-aura.workspace = true
-pallet-authorship.workspace = true
-pallet-balances.workspace = true
-pallet-collator-selection.workspace = true
-frame-executive.workspace = true
-frame-metadata-hash-extension.workspace = true
-pallet-session.workspace = true
-frame-support.workspace = true
-pallet-multisig.workspace = true
-pallet-message-queue.workspace = true
-pallet-proxy.workspace = true
-frame-benchmarking = { workspace = true, optional = true }
-frame-system.workspace = true
-frame-try-runtime = { optional = true, workspace = true }
-frame-system-rpc-runtime-api.workspace = true
-frame-system-benchmarking = { workspace = true, optional = true }
-pallet-utility.workspace = true
-pallet-vesting.workspace = true
-pallet-timestamp.workspace = true
-pallet-transaction-payment.workspace = true
-pallet-transaction-payment-rpc-runtime-api.workspace = true
-pallet-sudo.workspace = true
-pallet-preimage.workspace = true
-pallet-scheduler.workspace = true
-pallet-referenda.workspace = true
-pallet-conviction-voting.workspace = true
-pallet-whitelist.workspace = true
-pallet-collective.workspace = true
+# Polkadot SDK crates (sp-*, frame-*, pallet-*, cumulus-*, staging-xcm*, polkadot-*)
+polkadot-sdk = { workspace = true, features = [
+  "sp-api",
+  "sp-block-builder",
+  "sp-core",
+  "sp-inherents",
+  "sp-offchain",
+  "sp-runtime",
+  "sp-session",
+  "sp-std",
+  "sp-transaction-pool",
+  "sp-version",
+  "sp-genesis-builder",
+  "sp-consensus-aura",
+  "sp-keyring",
+  "pallet-aura",
+  "pallet-authorship",
+  "pallet-balances",
+  "pallet-collator-selection",
+  "frame-executive",
+  "frame-metadata-hash-extension",
+  "pallet-session",
+  "frame-support",
+  "pallet-multisig",
+  "pallet-message-queue",
+  "pallet-proxy",
+  "frame-system",
+  "frame-system-rpc-runtime-api",
+  "pallet-utility",
+  "pallet-vesting",
+  "pallet-timestamp",
+  "pallet-transaction-payment",
+  "pallet-transaction-payment-rpc-runtime-api",
+  "pallet-sudo",
+  "pallet-preimage",
+  "pallet-scheduler",
+  "pallet-referenda",
+  "pallet-conviction-voting",
+  "pallet-whitelist",
+  "pallet-collective",
+  "cumulus-pallet-aura-ext",
+  "cumulus-pallet-xcmp-queue",
+  "cumulus-pallet-xcm",
+  "cumulus-pallet-weight-reclaim",
+  "cumulus-primitives-aura",
+  "cumulus-primitives-core",
+  "cumulus-primitives-utility",
+  "staging-parachain-info",
+  "staging-xcm",
+  "staging-xcm-builder",
+  "staging-xcm-executor",
+  "xcm-runtime-apis",
+  "pallet-xcm",
+  "pallet-xcm-benchmarks",
+  "polkadot-parachain-primitives",
+  "polkadot-runtime-common",
+] }
+# `register_validate_block!` resolves this crate by name, so it stays a direct dependency.
+cumulus-pallet-parachain-system.workspace = true
 hex-literal.workspace = true
 
 # robonomics dependencies
@@ -76,73 +91,21 @@ pallet-robonomics-transaction.workspace = true
 robonomics-subscription-primitives.workspace = true
 robonomics-collator-rewards.workspace = true
 
-# cumulus dependencies
-cumulus-pallet-aura-ext.workspace = true
-cumulus-pallet-parachain-system.workspace = true
-cumulus-pallet-xcmp-queue.workspace = true
-cumulus-pallet-xcm.workspace = true
-cumulus-pallet-weight-reclaim.workspace = true
-cumulus-pallet-session-benchmarking = { workspace = true, optional = true }
-cumulus-primitives-aura.workspace = true
-cumulus-primitives-core.workspace = true
-cumulus-primitives-utility.workspace = true
-parachain-info.workspace = true
-
-# polkadot dependencies
-xcm.workspace = true
-xcm-builder.workspace = true
-xcm-executor.workspace = true
-xcm-runtime-apis.workspace = true
-pallet-xcm.workspace = true
-pallet-xcm-benchmarks.workspace = true
-polkadot-parachain-primitives.workspace = true
-polkadot-runtime-common.workspace = true
-sp-io = { workspace = true, optional = true }
-
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-io.workspace = true
+polkadot-sdk = { workspace = true, features = ["std", "sp-io"] }
 
 [features]
 default = ["std"]
-with-tracing = ["frame-executive/with-tracing"]
+with-tracing = ["polkadot-sdk/with-tracing"]
 std = [
   "substrate-wasm-builder",
-  "frame-benchmarking?/std",
+  "polkadot-sdk/std",
   "parity-scale-codec/std",
-  "sp-api/std",
-  "sp-block-builder/std",
-  "sp-genesis-builder/std",
-  "sp-core/std",
-  "sp-inherents/std",
-  "sp-offchain/std",
-  "sp-runtime/std",
-  "sp-io?/std",
-  "sp-std/std",
-  "sp-session/std",
-  "sp-transaction-pool/std",
-  "sp-keyring/std",
-  "sp-version/std",
-  "pallet-aura/std",
-  "pallet-authorship/std",
-  "pallet-balances/std",
-  "pallet-collator-selection/std",
-  "frame-executive/std",
-  "frame-metadata-hash-extension/std",
-  "pallet-session/std",
-  "pallet-message-queue/std",
-  "pallet-multisig/std",
-  "pallet-proxy/std",
-  "frame-support/std",
-  "frame-system/std",
-  "frame-system-rpc-runtime-api/std",
-  "pallet-utility/std",
-  "pallet-vesting/std",
-  "pallet-timestamp/std",
-  "pallet-transaction-payment/std",
-  "pallet-transaction-payment-rpc-runtime-api/std",
+  "scale-info/std",
+  "cumulus-pallet-parachain-system/std",
   "pallet-robonomics-datalog/std",
   "pallet-robonomics-digital-twin/std",
   "pallet-robonomics-launch/std",
@@ -155,53 +118,14 @@ std = [
   "pallet-robonomics-transaction/std",
   "robonomics-subscription-primitives/std",
   "robonomics-collator-rewards/std",
-  "pallet-sudo/std",
-  "pallet-preimage/std",
-  "pallet-scheduler/std",
-  "pallet-referenda/std",
-  "pallet-conviction-voting/std",
-  "pallet-whitelist/std",
-  "pallet-collective/std",
-  "cumulus-pallet-aura-ext/std",
-  "cumulus-pallet-parachain-system/std",
-  "cumulus-primitives-aura/std",
-  "cumulus-primitives-core/std",
-  "cumulus-primitives-utility/std",
-  "cumulus-pallet-xcmp-queue/std",
-  "cumulus-pallet-xcm/std",
-  "xcm/std",
-  "xcm-builder/std",
-  "xcm-executor/std",
-  "xcm-runtime-apis/std",
-  "pallet-xcm-benchmarks/std",
-  "pallet-xcm/std",
-  "polkadot-parachain-primitives/std",
-  "polkadot-runtime-common/std",
-  "parachain-info/std",
-  "scale-info/std",
 ]
 runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
-  "frame-system-benchmarking/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
-  "dep:sp-io",
-  "pallet-balances/runtime-benchmarks",
-  "pallet-timestamp/runtime-benchmarks",
-  "pallet-utility/runtime-benchmarks",
-  "pallet-multisig/runtime-benchmarks",
-  "pallet-proxy/runtime-benchmarks",
-  "pallet-message-queue/runtime-benchmarks",
-  "pallet-vesting/runtime-benchmarks",
-  "pallet-collator-selection/runtime-benchmarks",
-  "pallet-session/runtime-benchmarks",
-  "pallet-preimage/runtime-benchmarks",
-  "pallet-scheduler/runtime-benchmarks",
-  "pallet-referenda/runtime-benchmarks",
-  "pallet-conviction-voting/runtime-benchmarks",
-  "pallet-whitelist/runtime-benchmarks",
-  "pallet-collective/runtime-benchmarks",
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
+  "polkadot-sdk/frame-system-benchmarking",
+  "polkadot-sdk/cumulus-pallet-session-benchmarking",
+  "polkadot-sdk/sp-io",
+  "cumulus-pallet-parachain-system/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
@@ -212,41 +136,11 @@ runtime-benchmarks = [
   "pallet-robonomics-subscription-governance/runtime-benchmarks",
   "pallet-robonomics-subscription-purchase/runtime-benchmarks",
   "pallet-robonomics-transaction/runtime-benchmarks",
-  "pallet-xcm-benchmarks/runtime-benchmarks",
-  "pallet-xcm/runtime-benchmarks",
-  "xcm-builder/runtime-benchmarks",
-  "frame-system-benchmarking",
-  "cumulus-pallet-parachain-system/runtime-benchmarks",
-  "cumulus-pallet-xcmp-queue/runtime-benchmarks",
-  "cumulus-pallet-weight-reclaim/runtime-benchmarks",
-  "cumulus-pallet-session-benchmarking/runtime-benchmarks",
-  "cumulus-primitives-utility/runtime-benchmarks",
 ]
 try-runtime = [
-  "cumulus-pallet-aura-ext/try-runtime",
+  "polkadot-sdk/try-runtime",
+  "polkadot-sdk/frame-try-runtime",
   "cumulus-pallet-parachain-system/try-runtime",
-  "cumulus-pallet-weight-reclaim/try-runtime",
-  "frame-executive/try-runtime",
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-  "frame-try-runtime/try-runtime",
-  "pallet-aura/try-runtime",
-  "pallet-authorship/try-runtime",
-  "pallet-balances/try-runtime",
-  "pallet-collator-selection/try-runtime",
-  "pallet-multisig/try-runtime",
-  "pallet-proxy/try-runtime",
-  "pallet-session/try-runtime",
-  "pallet-timestamp/try-runtime",
-  "pallet-transaction-payment/try-runtime",
-  "pallet-utility/try-runtime",
-  "pallet-sudo/try-runtime",
-  "pallet-preimage/try-runtime",
-  "pallet-scheduler/try-runtime",
-  "pallet-referenda/try-runtime",
-  "pallet-conviction-voting/try-runtime",
-  "pallet-whitelist/try-runtime",
-  "pallet-collective/try-runtime",
   "pallet-robonomics-datalog/try-runtime",
   "pallet-robonomics-digital-twin/try-runtime",
   "pallet-robonomics-launch/try-runtime",
@@ -258,8 +152,6 @@ try-runtime = [
   "pallet-robonomics-subscription-purchase/try-runtime",
   "pallet-robonomics-transaction/try-runtime",
   "robonomics-collator-rewards/try-runtime",
-  "parachain-info/try-runtime",
-  "sp-runtime/try-runtime",
 ]
 
 # Enable the metadata hash generation in the wasm builder.

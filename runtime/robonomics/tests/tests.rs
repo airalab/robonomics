@@ -17,10 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 #![cfg(test)]
 
+use polkadot_sdk::sp_core::crypto::Ss58Codec;
+use polkadot_sdk::staging_xcm::latest::prelude::*;
+use polkadot_sdk::xcm_runtime_apis::conversions::LocationToAccountHelper;
 use robonomics_runtime::{xcm_config::LocationToAccountId, AccountId};
-use sp_core::crypto::Ss58Codec;
-use xcm::latest::prelude::*;
-use xcm_runtime_apis::conversions::LocationToAccountHelper;
 
 const ALICE: [u8; 32] = [1u8; 32];
 
@@ -176,7 +176,6 @@ fn location_conversion_works() {
 }
 
 mod cps_view_functions {
-    use frame_support::view_functions::{ViewFunction, ViewFunctionDispatchError, ViewFunctionId};
     use pallet_robonomics_cps::{
         pallet::{
             HasCapabilityViewFunction, IdentityOfViewFunction, NodeByIdentityViewFunction,
@@ -185,6 +184,10 @@ mod cps_view_functions {
         Capability, Error, IdentityNode, NodeId, NodeIdentity, ResolvedScope,
     };
     use parity_scale_codec::{Decode, Encode};
+    use polkadot_sdk::frame_support::view_functions::{
+        ViewFunction, ViewFunctionDispatchError, ViewFunctionId,
+    };
+    use polkadot_sdk::sp_io;
     use robonomics_runtime::{AccountId, Runtime};
 
     #[test]

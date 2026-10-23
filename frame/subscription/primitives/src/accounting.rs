@@ -18,8 +18,8 @@
 //! Resource accounting interface for resource consumers.
 
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::sp_runtime::{DispatchError, DispatchResult};
 use scale_info::TypeInfo;
-use sp_runtime::{DispatchError, DispatchResult};
 
 /// Which accounting state a charge was applied to.
 #[derive(

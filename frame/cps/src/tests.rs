@@ -17,10 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Tests for pallet-robonomics-cps
 
+use polkadot_sdk::{frame_support, frame_system, sp_io, sp_runtime, sp_std};
+
 use crate::{self as pallet_cps, *};
-use frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
 use parity_scale_codec::Encode;
-use sp_runtime::{testing::TestSignature, BuildStorage};
+use polkadot_sdk::frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
+use polkadot_sdk::sp_runtime::{testing::TestSignature, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -2626,8 +2628,9 @@ fn grant_mode_scale_indices_are_explicit_and_stable() {
 /// supplied by the test.
 mod weight_component_tests {
     use super::*;
-    use frame_support::dispatch::GetDispatchInfo;
-    use frame_support::weights::Weight;
+    use polkadot_sdk::frame_support::dispatch::GetDispatchInfo;
+    use polkadot_sdk::frame_support::weights::Weight;
+    use polkadot_sdk::{frame_support, frame_system, sp_std};
     use std::cell::Cell;
 
     thread_local! {
@@ -2863,8 +2866,8 @@ where
     V: frame_support::view_functions::ViewFunction + Encode,
     R: parity_scale_codec::Decode,
 {
-    use frame_support::view_functions::DispatchViewFunction;
     use parity_scale_codec::DecodeAll;
+    use polkadot_sdk::frame_support::view_functions::DispatchViewFunction;
 
     let mut output = Vec::new();
     <Cps as DispatchViewFunction>::dispatch_view_function(
@@ -2976,7 +2979,8 @@ fn view_functions_do_not_mutate_storage() {
 /// Tests of the optional `NodeIdentity` binding.
 mod identity_tests {
     use super::*;
-    use sp_runtime::testing::H256;
+    use polkadot_sdk::sp_runtime::testing::H256;
+    use polkadot_sdk::{frame_support, frame_system};
 
     /// Owner of the Scope created by [`setup`].
     const OWNER: u64 = 1;
@@ -3595,6 +3599,7 @@ mod identity_tests {
 /// Tests of the strict address-oriented views.
 mod address_view_tests {
     use super::*;
+    use polkadot_sdk::{sp_io, sp_runtime};
 
     /// Owner of every Scope created by [`setup`].
     const OWNER: u64 = 1;

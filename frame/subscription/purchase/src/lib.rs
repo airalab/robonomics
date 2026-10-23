@@ -56,6 +56,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::frame_support;
+
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -69,8 +71,10 @@ pub use weights::WeightInfo;
 #[allow(clippy::module_inception)]
 pub mod pallet {
     use super::*;
-    use frame_support::{pallet_prelude::*, storage::with_storage_layer, traits::Get};
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::frame_support::{
+        pallet_prelude::*, storage::with_storage_layer, traits::Get,
+    };
+    use polkadot_sdk::frame_system::{self, pallet_prelude::*};
     use robonomics_subscription_primitives::{ResourceAllocation, SubscriptionAllocator};
 
     type AllocatorOf<T> = <T as Config>::Allocator;
@@ -99,9 +103,11 @@ pub mod pallet {
     >;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// The overarching event type.
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        #[allow(deprecated)]
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Origin allowed to create, update and disable products.
         type ManagementOrigin: EnsureOrigin<Self::RuntimeOrigin>;

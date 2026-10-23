@@ -18,8 +18,8 @@
 //! Types of `pallet-robonomics-subscription-purchase`.
 
 use core::fmt::Debug;
-use frame_support::{traits::Get, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::frame_support::{traits::Get, BoundedVec};
 use robonomics_subscription_primitives::{ResourceAllocation, SubscriptionAllocation};
 use scale_info::TypeInfo;
 

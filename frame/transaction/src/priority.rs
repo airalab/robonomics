@@ -35,7 +35,7 @@
 //! The bands assume that the other transaction extensions of the runtime add
 //! no priority (`CheckNonce` and `CheckWeight` contribute zero).
 
-use frame_support::{dispatch::DispatchClass, pallet_prelude::TransactionPriority};
+use polkadot_sdk::frame_support::{dispatch::DispatchClass, pallet_prelude::TransactionPriority};
 
 /// Size of the Fee and of the Subscription band.
 pub const BAND_SIZE: TransactionPriority = 1 << 62;

@@ -17,10 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Behavioural tests for `AuthorRewards`.
 
+use polkadot_sdk::frame_system;
+
 use crate::mock::{new_test_ext, AccountId, Balances, Test, TestReward};
 use crate::AuthorRewards;
-use frame_support::traits::fungible::Inspect;
-use pallet_authorship::EventHandler;
+use polkadot_sdk::frame_support::traits::fungible::Inspect;
+use polkadot_sdk::pallet_authorship::EventHandler;
 
 type Subject = AuthorRewards<Test, TestReward, Balances>;
 

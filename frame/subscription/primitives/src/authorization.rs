@@ -18,8 +18,8 @@
 //! Resource authorization and limit lookup interfaces.
 
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::sp_runtime::DispatchError;
 use scale_info::TypeInfo;
-use sp_runtime::DispatchError;
 
 /// Authorization context in which an actor wants to use a resource.
 ///

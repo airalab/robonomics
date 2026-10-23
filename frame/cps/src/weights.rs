@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Weight functions of `pallet-robonomics-cps`.
 
-use frame_support::weights::Weight;
+use polkadot_sdk::frame_support::weights::Weight;
 
 /// Weights of the pallet's calls. Runtimes implement it with weights
 /// generated from the pallet's benchmarks.

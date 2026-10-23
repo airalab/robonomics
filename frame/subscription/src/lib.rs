@@ -76,6 +76,8 @@
 
 extern crate alloc;
 
+use polkadot_sdk::frame_support;
+
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -96,15 +98,17 @@ const MAX_AGENDA_PROBES: u32 = 16;
 pub mod pallet {
     use super::*;
     use alloc::vec::Vec;
-    use frame_support::{pallet_prelude::*, storage::with_storage_layer, traits::Time};
-    use frame_system::pallet_prelude::*;
+    use polkadot_sdk::frame_support::{
+        pallet_prelude::*, storage::with_storage_layer, traits::Time,
+    };
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_runtime::{
+        traits::{CheckedAdd, One, Saturating, UniqueSaturatedInto, Zero},
+        ArithmeticError,
+    };
     use robonomics_subscription_primitives::{
         ChargeSource, Resource, ResourceAccounting, ResourceCharge, ResourceGeneration,
         ResourceLimit, SubscriptionAllocation, SubscriptionAllocator,
-    };
-    use sp_runtime::{
-        traits::{CheckedAdd, One, Saturating, UniqueSaturatedInto, Zero},
-        ArithmeticError,
     };
 
     /// Moment of the runtime clock.
@@ -118,10 +122,11 @@ pub mod pallet {
         SubscriptionAllocation<Resource, Limit, MomentOf<T>, <T as Config>::MaxResources>;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Runtime clock. Moments are in milliseconds, so Transaction rates
         /// are in `Wn` per millisecond.

@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics liability traits definitions.
 
-use frame_support::dispatch;
-use sp_runtime::DispatchResult;
+use polkadot_sdk::frame_support::dispatch;
+use polkadot_sdk::sp_runtime::DispatchResult;
 
 /// Transaction processing of agreement. Usually it consists of
 /// balance locking and transfers when liability successfully finished.

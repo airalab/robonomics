@@ -31,11 +31,11 @@ use crate::{
     Balance, Purchase,
 };
 use alloc::boxed::Box;
-use frame_support::traits::tokens::imbalance::{
+use polkadot_sdk::frame_support::traits::tokens::imbalance::{
     ImbalanceAccounting, UnsafeConstructorDestructor, UnsafeManualAccounting,
 };
-use xcm::latest::prelude::*;
-use xcm_executor::{
+use polkadot_sdk::staging_xcm::latest::prelude::*;
+use polkadot_sdk::staging_xcm_executor::{
     traits::{ConvertLocation, TransactAsset},
     AssetsInHolding,
 };

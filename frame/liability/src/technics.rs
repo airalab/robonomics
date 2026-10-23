@@ -18,9 +18,9 @@
 //! Set of approaches to handle technical aspects of agreement.
 
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use polkadot_sdk::sp_core::H256;
+use polkadot_sdk::sp_std::prelude::*;
 use scale_info::TypeInfo;
-use sp_core::H256;
-use sp_std::prelude::*;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
 #[derive(

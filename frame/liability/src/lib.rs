@@ -18,6 +18,8 @@
 //! The Robonomics runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use polkadot_sdk::frame_support;
+
 pub mod economics;
 pub mod signed;
 pub mod technics;
@@ -36,15 +38,18 @@ pub use weights::WeightInfo;
 pub mod pallet {
     use super::traits::*;
     use super::*;
-    use frame_support::{dispatch, pallet_prelude::*};
-    use frame_system::pallet_prelude::*;
-    use sp_std::prelude::*;
+    use polkadot_sdk::frame_support::{dispatch, pallet_prelude::*};
+    use polkadot_sdk::frame_system;
+    use polkadot_sdk::frame_system::pallet_prelude::*;
+    use polkadot_sdk::sp_std::prelude::*;
 
     /// Agreement indexing parameter.
     pub type Index = u32;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    // The pallet macro only accepts the full umbrella path for `frame_system::Config`
+    // in the supertrait and in the `RuntimeEvent` bound.
+    pub trait Config: polkadot_sdk::frame_system::Config {
         /// How to make and process agreement between two parties.
         type Agreement: dispatch::Parameter
             + Processing
@@ -56,7 +61,8 @@ pub mod pallet {
 
         /// The overarching event type.
         #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type RuntimeEvent: From<Event<Self>>
+            + IsType<<Self as polkadot_sdk::frame_system::Config>::RuntimeEvent>;
 
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
@@ -201,13 +207,14 @@ mod tests {
     use crate::technics::IPFS;
     use crate::traits::*;
     use crate::{self as liability, *};
-    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
     use hex_literal::hex;
-    use sp_core::{crypto::Pair, sr25519};
-    use sp_runtime::{
+    use polkadot_sdk::frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
+    use polkadot_sdk::sp_core::{crypto::Pair, sr25519};
+    use polkadot_sdk::sp_runtime::{
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, BuildStorage, MultiSignature,
     };
+    use polkadot_sdk::{frame_support, frame_system, pallet_balances, sp_io};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
     type Balance = u128;
@@ -287,7 +294,7 @@ mod tests {
         hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        use sp_keyring::sr25519::Keyring;
+        use polkadot_sdk::sp_keyring::sr25519::Keyring;
 
         let storage = RuntimeGenesisConfig {
             system: Default::default(),
