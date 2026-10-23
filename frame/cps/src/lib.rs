@@ -173,7 +173,10 @@
 //!
 //! [`Capability::Write`] allows [`Pallet::set_meta`] and
 //! [`Pallet::set_payload`]; [`Capability::CreateScope`] allows
-//! [`Pallet::create_scope`]. Adding a child node, deleting a node, and
+//! [`Pallet::create_scope`]; [`Capability::Transaction`] allows funding
+//! transactions from the Scope owner's subscription through the pallet's
+//! `ResourceAuthorization` implementation, accounted to the node's Scope.
+//! Adding a child node, deleting a node, and
 //! granting or revoking Access require the owner of the resolved Scope and
 //! cannot be delegated.
 //!
@@ -309,7 +312,11 @@ pub use weights::WeightInfo;
 use core::fmt::Debug;
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use robonomics_subscription_primitives::{
+    AuthorizationContext, Resource, ResourceAuthorization, ResourceContext,
+};
 use scale_info::TypeInfo;
+use sp_runtime::DispatchError;
 use sp_std::prelude::*;
 
 /// Domain separator of the signed [`NodeIdentityPermit`] payload, the first
@@ -486,6 +493,12 @@ pub enum Capability {
     /// Allows [`Pallet::set_meta`] and [`Pallet::set_payload`] on a node.
     #[codec(index = 1)]
     Write,
+    /// Allows funding transactions from the Scope owner's subscription in
+    /// the context of a node, through the CPS
+    /// [`ResourceAuthorization`](robonomics_subscription_primitives::ResourceAuthorization)
+    /// provider. The usage is accounted to the Scope the node resolves to.
+    #[codec(index = 2)]
+    Transaction,
 }
 
 impl Capability {
@@ -498,6 +511,7 @@ impl Capability {
         match self {
             Capability::CreateScope => 0,
             Capability::Write => 1,
+            Capability::Transaction => 2,
         }
     }
 }
@@ -959,6 +973,10 @@ pub mod pallet {
         RootIdentityMustBeCaller,
         /// The node has no identity.
         IdentityNotSet,
+        /// The account is not the identity of any node.
+        IdentityNotFound,
+        /// The resource cannot be delegated through CPS.
+        UnsupportedResource,
     }
 
     #[pallet::call]
@@ -1565,6 +1583,8 @@ pub mod pallet {
         ///
         /// - [`Capability::Write`]: [`Self::authorize`], as in
         ///   [`Pallet::set_meta`] and [`Pallet::set_payload`];
+        /// - [`Capability::Transaction`]: [`Self::authorize`], as in the
+        ///   CPS `ResourceAuthorization` provider;
         /// - [`Capability::CreateScope`]: the check of
         ///   [`Pallet::create_scope`], i.e. [`Self::authorize`] or, at a
         ///   nested Scope root, ownership of the immediately enclosing Scope.
@@ -1588,7 +1608,9 @@ pub mod pallet {
                     let info = <Nodes<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
                     Self::authorize_create_scope(node_id, &info, &account_id)
                 }
-                Capability::Write => Self::authorize(node_id, &account_id, capability).map(|_| ()),
+                Capability::Write | Capability::Transaction => {
+                    Self::authorize(node_id, &account_id, capability).map(|_| ())
+                }
             };
             match checked {
                 Ok(()) => Ok(true),
@@ -1786,18 +1808,37 @@ pub mod pallet {
             capability: Capability,
         ) -> Result<bool, Error<T>> {
             let resolved = Self::resolve_scope(node_id)?;
+            Self::authorize_resolved(&resolved, sender, capability)?;
+            Ok(true)
+        }
+
+        /// The check of [`Self::authorize`] on an already resolved Scope.
+        ///
+        /// `resolved` must be the result of [`Self::resolve_scope`] for the
+        /// node being checked, whose path starts at that node. Lets callers
+        /// that also need the Scope (for example the `ResourceAuthorization`
+        /// provider) walk the tree only once.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::AccessDenied`]: none of the conditions hold.
+        fn authorize_resolved(
+            resolved: &ResolvedScope<T::AccountId>,
+            sender: &T::AccountId,
+            capability: Capability,
+        ) -> Result<(), Error<T>> {
             if resolved.owner == *sender {
-                return Ok(true);
+                return Ok(());
             }
 
             for (index, current) in resolved.path.iter().enumerate() {
                 let flags = <Access<T>>::get(resolved.id, (*current, sender.clone()));
                 if index == 0 {
                     if flags.contains(capability) {
-                        return Ok(true);
+                        return Ok(());
                     }
                 } else if flags.applies_to_descendants(capability) {
-                    return Ok(true);
+                    return Ok(());
                 }
             }
 
@@ -1994,6 +2035,60 @@ pub mod pallet {
                     scope_id
                 );
             }
+        }
+    }
+
+    /// CPS-backed authorization of subscription resources.
+    ///
+    /// - [`AuthorizationContext::Account`]: the actor uses its own
+    ///   subscription; no CPS state is read and only global accounting
+    ///   applies.
+    /// - [`AuthorizationContext::Node`]: the actor must hold the capability
+    ///   of the resource at the node ([`Pallet::authorize`]); the Scope owner
+    ///   is the subscription owner, and the [`ScopeId`] the node resolves to
+    ///   is the local accounting context.
+    /// - [`AuthorizationContext::NodeIdentity`]: the identity is resolved to
+    ///   its canonical node and then handled exactly like `Node`. The
+    ///   identity never becomes the local accounting context, so changing a
+    ///   node identity does not reset local accounting.
+    ///
+    /// The [`NodeId`] is the authorization context and the [`ScopeId`] is the
+    /// local accounting context: different nodes of one Scope are authorized
+    /// separately but share the local accounting state of the Scope.
+    impl<T: Config> ResourceAuthorization<T::AccountId> for Pallet<T> {
+        type ContextId = AuthorizationContext<T::AccountId, NodeId>;
+        type LocalId = ScopeId;
+        type ResourceId = Resource;
+
+        fn authorize(
+            actor: &T::AccountId,
+            context: &Self::ContextId,
+            resource: Resource,
+        ) -> Result<ResourceContext<T::AccountId, ScopeId>, DispatchError> {
+            let node_id = match context {
+                AuthorizationContext::Account(account) => {
+                    ensure!(account == actor, Error::<T>::AccessDenied);
+                    return Ok(ResourceContext {
+                        owner: account.clone(),
+                        local_id: None,
+                    });
+                }
+                AuthorizationContext::Node(node_id) => *node_id,
+                AuthorizationContext::NodeIdentity(identity) => {
+                    <IdentityNode<T>>::get(identity).ok_or(Error::<T>::IdentityNotFound)?
+                }
+            };
+
+            let capability = match resource {
+                Resource::Transaction => Capability::Transaction,
+                _ => return Err(Error::<T>::UnsupportedResource.into()),
+            };
+            let resolved = Self::resolve_scope(node_id)?;
+            Self::authorize_resolved(&resolved, actor, capability)?;
+            Ok(ResourceContext {
+                owner: resolved.owner,
+                local_id: Some(resolved.id),
+            })
         }
     }
 }

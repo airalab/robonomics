@@ -110,6 +110,9 @@ pub mod pallet {
     /// Moment of the runtime clock.
     pub type MomentOf<T> = <<T as Config>::Time as Time>::Moment;
 
+    /// Refilled and charged `(global, local)` buckets, not yet written.
+    type ChargedBuckets<T> = (RateState<MomentOf<T>>, RateState<MomentOf<T>>);
+
     /// Allocation payload accepted by the pallet.
     pub type AllocationOf<T> =
         SubscriptionAllocation<Resource, Limit, MomentOf<T>, <T as Config>::MaxResources>;
@@ -478,6 +481,66 @@ pub mod pallet {
             }
         }
 
+        /// Global bucket of `owner` refilled to now and charged with `usage`,
+        /// without writing it.
+        ///
+        /// Shared by `consume_global` and `can_consume_global` so that the
+        /// read-only admission query and the authoritative charge can never
+        /// diverge.
+        fn charged_global(
+            owner: &T::AccountId,
+            generation: ResourceGeneration,
+            resource: Resource,
+            usage: Usage,
+        ) -> Result<RateState<MomentOf<T>>, DispatchError> {
+            let amount = Self::transaction_amount(resource, usage)?;
+            ensure!(usage.resource() == resource, Error::<T>::UsageMismatch);
+            Self::active_subscription(owner, generation)?;
+
+            let now = T::Time::now();
+            let (_, mut global) = Self::refilled_global(owner, generation, now)?;
+            ensure!(global.available >= amount, Error::<T>::GlobalLimitExceeded);
+            global.available -= amount;
+            Ok(global)
+        }
+
+        /// Global and local buckets of `owner` in `local` refilled to now and
+        /// both charged with `usage`, without writing them.
+        ///
+        /// Shared by `consume_local` and `can_consume_local`. Returns
+        /// `(global, local)`.
+        fn charged_local(
+            owner: &T::AccountId,
+            local: &T::LocalId,
+            generation: ResourceGeneration,
+            resource: Resource,
+            usage: Usage,
+        ) -> Result<ChargedBuckets<T>, DispatchError> {
+            let amount = Self::transaction_amount(resource, usage)?;
+            ensure!(usage.resource() == resource, Error::<T>::UsageMismatch);
+            let subscription = Self::active_subscription(owner, generation)?;
+
+            let now = T::Time::now();
+            let (_, mut global) = Self::refilled_global(owner, generation, now)?;
+            let local_rate = Self::local_rate(local)?;
+            let mut local_bucket = Self::refilled_local(
+                owner,
+                local,
+                generation,
+                subscription.started_at,
+                local_rate,
+                now,
+            );
+            ensure!(
+                local_bucket.available >= amount,
+                Error::<T>::LocalLimitExceeded
+            );
+            ensure!(global.available >= amount, Error::<T>::GlobalLimitExceeded);
+            local_bucket.available -= amount;
+            global.available -= amount;
+            Ok((global, local_bucket))
+        }
+
         /// Remove the allocations and global state of `owner` and return the
         /// Transaction rate they held. Does not touch the aggregate.
         fn clear_allocations(owner: &T::AccountId) -> Amount {
@@ -778,20 +841,32 @@ pub mod pallet {
                 .map(|subscription| subscription.generation)
         }
 
+        fn can_consume_global(
+            owner: &T::AccountId,
+            generation: ResourceGeneration,
+            resource: Resource,
+            usage: Usage,
+        ) -> DispatchResult {
+            Self::charged_global(owner, generation, resource, usage).map(|_| ())
+        }
+
+        fn can_consume_local(
+            owner: &T::AccountId,
+            local: &T::LocalId,
+            generation: ResourceGeneration,
+            resource: Resource,
+            usage: Usage,
+        ) -> DispatchResult {
+            Self::charged_local(owner, local, generation, resource, usage).map(|_| ())
+        }
+
         fn consume_global(
             owner: &T::AccountId,
             generation: ResourceGeneration,
             resource: Resource,
             usage: Usage,
         ) -> Result<Self::Charge, DispatchError> {
-            let amount = Self::transaction_amount(resource, usage)?;
-            ensure!(usage.resource() == resource, Error::<T>::UsageMismatch);
-            Self::active_subscription(owner, generation)?;
-
-            let now = T::Time::now();
-            let (_, mut global) = Self::refilled_global(owner, generation, now)?;
-            ensure!(global.available >= amount, Error::<T>::GlobalLimitExceeded);
-            global.available -= amount;
+            let global = Self::charged_global(owner, generation, resource, usage)?;
             Self::put_global(owner, generation, global);
 
             Ok(Charge(ResourceCharge {
@@ -810,27 +885,8 @@ pub mod pallet {
             resource: Resource,
             usage: Usage,
         ) -> Result<Self::Charge, DispatchError> {
-            let amount = Self::transaction_amount(resource, usage)?;
-            let subscription = Self::active_subscription(owner, generation)?;
-
-            let now = T::Time::now();
-            let (_, mut global) = Self::refilled_global(owner, generation, now)?;
-            let local_rate = Self::local_rate(local)?;
-            let mut local_bucket = Self::refilled_local(
-                owner,
-                local,
-                generation,
-                subscription.started_at,
-                local_rate,
-                now,
-            );
-            ensure!(
-                local_bucket.available >= amount,
-                Error::<T>::LocalLimitExceeded
-            );
-            ensure!(global.available >= amount, Error::<T>::GlobalLimitExceeded);
-            local_bucket.available -= amount;
-            global.available -= amount;
+            let (global, local_bucket) =
+                Self::charged_local(owner, local, generation, resource, usage)?;
             Self::put_local(owner, local, generation, local_bucket);
             Self::put_global(owner, generation, global);
 

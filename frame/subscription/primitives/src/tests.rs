@@ -259,6 +259,32 @@ impl ResourceAccounting<AccountId> for Ledger {
         (*owner != 0).then(|| GENERATION.with(|g| g.get()))
     }
 
+    fn can_consume_global(
+        owner: &AccountId,
+        generation: ResourceGeneration,
+        resource: Resource,
+        usage: RuntimeUsage,
+    ) -> DispatchResult {
+        Self::charge(owner, ChargeSource::Global, generation, resource, usage).map(|_| ())
+    }
+
+    fn can_consume_local(
+        owner: &AccountId,
+        local: &u16,
+        generation: ResourceGeneration,
+        resource: Resource,
+        usage: RuntimeUsage,
+    ) -> DispatchResult {
+        Self::charge(
+            owner,
+            ChargeSource::Local(*local),
+            generation,
+            resource,
+            usage,
+        )
+        .map(|_| ())
+    }
+
     fn consume_global(
         owner: &AccountId,
         generation: ResourceGeneration,
@@ -341,6 +367,25 @@ fn accounting_consumes_runtime_usage_and_preserves_context() {
     assert_eq!(local.owner, 1);
 
     assert_eq!(Ledger::generation(&0), None);
+}
+
+#[test]
+fn admission_queries_mirror_consumption() {
+    GENERATION.with(|g| g.set(3));
+    let usage = RuntimeUsage::Transaction(TransactionUsage(2));
+
+    assert_eq!(
+        Ledger::can_consume_global(&1, 3, Resource::Transaction, usage),
+        Ok(())
+    );
+    assert_eq!(
+        Ledger::can_consume_local(&1, &7, 3, Resource::Transaction, usage),
+        Ok(())
+    );
+    // A stale generation is rejected by the query exactly like by the charge.
+    assert!(Ledger::can_consume_global(&1, 2, Resource::Transaction, usage).is_err());
+    assert!(Ledger::consume_global(&1, 2, Resource::Transaction, usage).is_err());
+    assert!(Ledger::can_consume_local(&0, &7, 3, Resource::Transaction, usage).is_err());
 }
 
 #[test]

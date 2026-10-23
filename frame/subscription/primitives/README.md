@@ -22,7 +22,7 @@ robonomics-subscription-primitives
 | `ResourceAuthorization` | Maps `(actor, ContextId, resource)` to `ResourceContext { owner, local_id }` |
 | `ResourceLimit` | Read-only lookup of the `Limit` for `(LocalId, resource)` |
 | `SubscriptionAllocation`, `SubscriptionAllocator` | Bounded, storage-independent allocation payload and the interface allocators use to create or revoke a subscription |
-| `ResourceAccounting` | Global and local consumption with generation-bound correction via an opaque `Charge` |
+| `ResourceAccounting` | Global and local consumption with generation-bound correction via an opaque `Charge`, plus read-only `can_consume_*` admission queries |
 | `ResourceCharge`, `ChargeSource` | Reference shape of a charge receipt |
 
 ## Invariants
@@ -38,3 +38,5 @@ robonomics-subscription-primitives
   and local accounting are both required.
 - Consumers supply `Usage` only; the local limit comes from `ResourceLimit`.
 - A correction from generation `N` must never credit generation `N + 1`.
+- `can_consume_*` never mutates state and mirrors the verdict of the
+  matching `consume_*`; only `consume_*` is authoritative.

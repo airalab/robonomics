@@ -46,6 +46,8 @@
 //! - Consumers supply only `Usage`; the applicable local limit is obtained by
 //!   the accounting implementation through [`ResourceLimit`].
 //! - A charge receipt binds a correction to the generation it was charged in.
+//! - Admission queries (`can_consume_*`) are read-only; consumption stays
+//!   authoritative.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

@@ -65,3 +65,12 @@ The pallet does not use TPS or `free_weight`, and does not touch legacy
 storage access counts. Replace them with benchmarked weights. Resource
 consumers are responsible for charging the weights of `consume_*` and
 `correct`.
+
+## Resource consumers
+
+[`pallet-robonomics-transaction`](../transaction) consumes the Transaction
+resource: it supplies the baseline `Usage` of each transaction and calls
+`ResourceAccounting`. For advisory checks (transaction-pool validation) the
+interface has read-only `can_consume_global` and `can_consume_local`, which give
+the verdict `consume_*` would give against the current state and write
+nothing.

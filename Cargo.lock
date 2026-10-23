@@ -4799,6 +4799,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "robonomics-subscription-primitives",
  "scale-info",
  "sp-io",
  "sp-runtime",
@@ -4917,6 +4918,23 @@ dependencies = [
  "frame-system",
  "pallet-robonomics-subscription",
  "pallet-robonomics-subscription-governance",
+ "parity-scale-codec",
+ "robonomics-subscription-primitives",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-robonomics-transaction"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-robonomics-cps",
+ "pallet-robonomics-subscription",
+ "pallet-transaction-payment",
  "parity-scale-codec",
  "robonomics-subscription-primitives",
  "scale-info",
@@ -6201,6 +6219,7 @@ dependencies = [
  "pallet-robonomics-subscription",
  "pallet-robonomics-subscription-governance",
  "pallet-robonomics-subscription-purchase",
+ "pallet-robonomics-transaction",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -6265,6 +6284,7 @@ dependencies = [
  "parity-scale-codec",
  "robonomics-chain-spec",
  "robonomics-runtime-metadata",
+ "scale-info",
  "subxt",
  "subxt-signer",
  "tokio",

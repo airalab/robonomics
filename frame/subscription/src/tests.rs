@@ -699,6 +699,104 @@ fn usage_must_match_resource() {
     });
 }
 
+#[test]
+fn admission_query_mirrors_global_consumption_without_mutation() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(allocate(ALICE, 60_000, 5));
+        let gen = generation(ALICE);
+        let usage = |amount| Usage::Transaction(amount);
+        advance_time(100);
+        let before = GlobalResourceState::<Runtime>::get(ALICE, Resource::Transaction);
+
+        assert_ok!(Subscription::can_consume_global(
+            &ALICE,
+            gen,
+            Resource::Transaction,
+            usage(500)
+        ));
+        assert_noop!(
+            Subscription::can_consume_global(&ALICE, gen, Resource::Transaction, usage(501)),
+            Error::<Runtime>::GlobalLimitExceeded
+        );
+        assert_noop!(
+            Subscription::can_consume_global(&ALICE, gen + 1, Resource::Transaction, usage(1)),
+            Error::<Runtime>::WrongGeneration
+        );
+        assert_noop!(
+            Subscription::can_consume_global(&BOB, 1, Resource::Transaction, usage(0)),
+            Error::<Runtime>::NoSubscription
+        );
+        // Repeated queries never consume the allowance.
+        assert_ok!(Subscription::can_consume_global(
+            &ALICE,
+            gen,
+            Resource::Transaction,
+            usage(500)
+        ));
+        assert_eq!(
+            GlobalResourceState::<Runtime>::get(ALICE, Resource::Transaction),
+            before
+        );
+        assert_ok!(consume_global(ALICE, 500));
+
+        // Allowance becomes available again once runtime time advances.
+        assert_noop!(
+            Subscription::can_consume_global(&ALICE, gen, Resource::Transaction, usage(1)),
+            Error::<Runtime>::GlobalLimitExceeded
+        );
+        advance_time(1);
+        assert_ok!(Subscription::can_consume_global(
+            &ALICE,
+            gen,
+            Resource::Transaction,
+            usage(5)
+        ));
+
+        // Expired subscriptions are rejected like by consumption.
+        set_time(10_000 + 60_000);
+        assert_noop!(
+            Subscription::can_consume_global(&ALICE, gen, Resource::Transaction, usage(0)),
+            Error::<Runtime>::SubscriptionExpired
+        );
+    });
+}
+
+#[test]
+fn admission_query_mirrors_local_consumption_without_mutation() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(allocate(ALICE, 60_000, 5));
+        let gen = generation(ALICE);
+        let usage = |amount| Usage::Transaction(amount);
+        advance_time(100);
+        assert_noop!(
+            Subscription::can_consume_local(&ALICE, &7, gen, Resource::Transaction, usage(0)),
+            Error::<Runtime>::MissingLocalLimit
+        );
+
+        set_local_limit(7, 3);
+        assert_ok!(Subscription::can_consume_local(
+            &ALICE,
+            &7,
+            gen,
+            Resource::Transaction,
+            usage(300)
+        ));
+        assert_noop!(
+            Subscription::can_consume_local(&ALICE, &7, gen, Resource::Transaction, usage(301)),
+            Error::<Runtime>::LocalLimitExceeded
+        );
+        // The query writes no local state.
+        assert!(LocalResourceState::<Runtime>::get((ALICE, 7u32, Resource::Transaction)).is_none());
+
+        // Global allowance stays authoritative for local admission.
+        set_local_limit(8, 50);
+        assert_noop!(
+            Subscription::can_consume_local(&ALICE, &8, gen, Resource::Transaction, usage(501)),
+            Error::<Runtime>::GlobalLimitExceeded
+        );
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Local Transaction accounting
 // ---------------------------------------------------------------------------

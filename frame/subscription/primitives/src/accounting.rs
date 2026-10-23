@@ -60,6 +60,12 @@ pub struct ResourceCharge<AccountId, LocalId, ResourceId, Generation, Usage> {
 /// the local `Limit`: for local accounting the implementation obtains that
 /// policy through `ResourceLimit`. `Usage` is resource-specific and need not
 /// equal the `Limit` type.
+///
+/// The `can_consume_*` queries are read-only and give the same verdict the
+/// matching `consume_*` call would give against the current state. They
+/// serve advisory checks (for example transaction-pool validation), which
+/// must not mutate accounting state; the `consume_*` call stays
+/// authoritative.
 pub trait ResourceAccounting<AccountId> {
     /// Local accounting and resource-limit context identifier.
     type LocalId;
@@ -74,6 +80,25 @@ pub trait ResourceAccounting<AccountId> {
 
     /// Current generation of the subscription of `owner`, if it has one.
     fn generation(owner: &AccountId) -> Option<Self::Generation>;
+
+    /// Whether [`Self::consume_global`] with the same arguments would
+    /// currently succeed. Never mutates state.
+    fn can_consume_global(
+        owner: &AccountId,
+        generation: Self::Generation,
+        resource: Self::ResourceId,
+        usage: Self::Usage,
+    ) -> DispatchResult;
+
+    /// Whether [`Self::consume_local`] with the same arguments would
+    /// currently succeed. Never mutates state.
+    fn can_consume_local(
+        owner: &AccountId,
+        local: &Self::LocalId,
+        generation: Self::Generation,
+        resource: Self::ResourceId,
+        usage: Self::Usage,
+    ) -> DispatchResult;
 
     /// Charge `usage` to the global accounting of `owner`.
     ///

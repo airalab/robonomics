@@ -75,11 +75,11 @@ use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
-    spec_version: 52,
+    spec_version: 53,
     impl_version: 1,
     system_version: 1,
     authoring_version: 1,
-    transaction_version: 4,
+    transaction_version: 5,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -644,6 +644,30 @@ impl pallet_robonomics_subscription_purchase::Config for Runtime {
     type WeightInfo = pallet_robonomics_subscription_purchase::weights::SubstrateWeight<Runtime>;
 }
 
+/// Converts the baseline transaction cost in `Wn` to Subscription usage.
+pub struct TransactionUsage;
+
+impl sp_runtime::traits::Convert<Balance, pallet_robonomics_subscription::Usage>
+    for TransactionUsage
+{
+    fn convert(cost: Balance) -> pallet_robonomics_subscription::Usage {
+        pallet_robonomics_subscription::Usage::Transaction(cost)
+    }
+}
+
+impl pallet_robonomics_transaction::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ContextId = robonomics_subscription_primitives::AuthorizationContext<
+        AccountId,
+        pallet_robonomics_cps::NodeId,
+    >;
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type Authorization = CPS;
+    type Accounting = Subscription;
+    type ToUsage = TransactionUsage;
+    type WeightInfo = pallet_robonomics_transaction::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_digital_twin::WeightInfo<Runtime>;
@@ -766,6 +790,9 @@ mod runtime {
     #[runtime::pallet_index(60)]
     pub type Purchase = pallet_robonomics_subscription_purchase;
 
+    #[runtime::pallet_index(61)]
+    pub type Transaction = pallet_robonomics_transaction;
+
     //
     // XCM support pallets.
     //
@@ -854,7 +881,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
-        pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+        pallet_robonomics_transaction::ChargeTransaction<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),
 >;

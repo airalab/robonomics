@@ -18,6 +18,7 @@ sp-runtime.workspace = true
 sp-std.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
+robonomics-subscription-primitives.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -33,6 +34,7 @@ std = [
   "frame-support/std",
   "frame-benchmarking?/std",
   "scale-info/std",
+  "robonomics-subscription-primitives/std",
 ]
 
 runtime-benchmarks = [
