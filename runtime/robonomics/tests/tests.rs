@@ -266,15 +266,18 @@ mod cps_view_functions {
 }
 
 mod subscription_purchase_xcm {
-    use frame_support::{assert_ok, BoundedVec};
     use pallet_robonomics_subscription::{Limit, Subscriptions};
+    use polkadot_sdk::{
+        frame_support::{assert_ok, BoundedVec},
+        sp_io,
+        staging_xcm::latest::prelude::*,
+        staging_xcm_executor::{traits::ConvertLocation, XcmExecutor},
+    };
     use robonomics_runtime::{
         xcm_config::{AssetHubLocation, LocationToAccountId, UsdtId, XcmConfig},
         AccountId, Purchase, Runtime, RuntimeCall, RuntimeOrigin,
     };
     use robonomics_subscription_primitives::{Resource, ResourceAllocation};
-    use xcm::latest::prelude::*;
-    use xcm_executor::{traits::ConvertLocation, XcmExecutor};
 
     const USER: [u8; 32] = [7u8; 32];
     const PRICE: u128 = 1_000_000;
@@ -388,26 +391,29 @@ mod subscription_purchase_xcm {
 }
 
 mod subscription_transaction {
-    use frame_support::{
-        assert_ok,
-        dispatch::{DispatchInfo, GetDispatchInfo},
-        traits::fungible::{Inspect, Mutate},
-        BoundedVec,
-    };
-    use frame_system::RawOrigin;
     use pallet_robonomics_cps::{Capability, GrantMode, NodeId};
     use pallet_robonomics_subscription::Limit;
     use pallet_robonomics_transaction::{priority, ChargeTransaction};
+    use polkadot_sdk::{
+        frame_support::{
+            assert_ok,
+            dispatch::{DispatchInfo, GetDispatchInfo},
+            traits::fungible::{Inspect, Mutate},
+            BoundedVec,
+        },
+        frame_system::{self, RawOrigin},
+        pallet_timestamp, pallet_transaction_payment, sp_io,
+        sp_runtime::{
+            traits::{DispatchTransaction, TransactionExtension},
+            transaction_validity::{InvalidTransaction, TransactionSource},
+        },
+    };
     use robonomics_runtime::{
         AccountId, Balances, Runtime, RuntimeCall, Subscription, Transaction, TxExtension, CPS, XRT,
     };
     use robonomics_subscription_primitives::{
         AuthorizationContext, Resource, ResourceAllocation, SubscriptionAllocation,
         SubscriptionAllocator,
-    };
-    use sp_runtime::{
-        traits::{DispatchTransaction, TransactionExtension},
-        transaction_validity::{InvalidTransaction, TransactionSource},
     };
 
     const LEN: usize = 100;
