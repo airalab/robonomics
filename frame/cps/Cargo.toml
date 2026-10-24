@@ -20,13 +20,19 @@ polkadot-sdk = { workspace = true, features = [
   "frame-system",
   "frame-support",
 ] }
+robonomics-subscription-primitives.workspace = true
 
 [dev-dependencies]
 polkadot-sdk = { workspace = true, features = ["std", "sp-io"] }
 
 [features]
 default = ["std"]
-std = ["parity-scale-codec/std", "scale-info/std", "polkadot-sdk/std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "polkadot-sdk/std",
+  "robonomics-subscription-primitives/std",
+]
 
 runtime-benchmarks = [
   "polkadot-sdk/runtime-benchmarks",

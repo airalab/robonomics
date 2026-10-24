@@ -9,7 +9,18 @@ repository = "https://github.com/airalab/robonomics"
 [workspace]
 members = [
   "chain-spec",
-  "frame/*",
+  "frame/collator-rewards",
+  "frame/cps",
+  "frame/datalog",
+  "frame/digital-twin",
+  "frame/launch",
+  "frame/liability",
+  "frame/rws",
+  "frame/subscription",
+  "frame/subscription/governance",
+  "frame/subscription/purchase",
+  "frame/subscription/primitives",
+  "frame/transaction",
   "runtime/robonomics",
   "runtime/robonomics/metadata",
   "runtime/robonomics/subxt-api",
@@ -53,6 +64,11 @@ substrate-wasm-builder = "35.0.0"
 # Robonomics pallets
 pallet-robonomics-cps = { version = "1.1", path = "./frame/cps", default-features = false }
 robonomics-collator-rewards = { version = "0.2.0", path = "./frame/collator-rewards", default-features = false }
+robonomics-subscription-primitives = { version = "0.1.0", path = "./frame/subscription/primitives", default-features = false }
+pallet-robonomics-subscription = { version = "0.1.0", path = "./frame/subscription", default-features = false }
+pallet-robonomics-subscription-governance = { version = "0.1.0", path = "./frame/subscription/governance", default-features = false }
+pallet-robonomics-subscription-purchase = { version = "0.1.0", path = "./frame/subscription/purchase", default-features = false }
+pallet-robonomics-transaction = { version = "0.1.0", path = "./frame/transaction", default-features = false }
 
 # Robonomics pallets (deprecated)
 pallet-robonomics-liability = { version = "0.12.0", path = "./frame/liability", default-features = false }

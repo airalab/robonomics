@@ -3923,3 +3923,261 @@ mod address_view_tests {
         });
     }
 }
+
+/// CPS as `ResourceAuthorization` provider of subscription resources.
+mod resource_authorization_tests {
+    use super::*;
+    use parity_scale_codec::Decode;
+    use robonomics_subscription_primitives::{
+        AuthorizationContext, Resource, ResourceAuthorization, ResourceContext,
+    };
+
+    const OWNER: u64 = 1;
+    const ACTOR: u64 = 2;
+    const IDENTITY: u64 = 9;
+
+    type Context = AuthorizationContext<u64, NodeId>;
+
+    /// `OWNER` roots Scope 0 at node 0, with nodes 1 (child of 0) and
+    /// 2 (child of 1) below it, plus a nested Scope 1 rooted at node 3
+    /// (child of 2).
+    fn setup() {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(OWNER),
+            None,
+            None,
+            None,
+            None
+        ));
+        for parent in 0..3 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(OWNER),
+                Some(NodeId(parent)),
+                None,
+                None,
+                None
+            ));
+        }
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(OWNER), NodeId(3)));
+    }
+
+    fn grant(node: u64, mode: GrantMode) {
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(OWNER),
+            NodeId(node),
+            ACTOR,
+            Capability::Transaction,
+            mode,
+        ));
+    }
+
+    fn authorize(
+        actor: u64,
+        context: Context,
+    ) -> Result<ResourceContext<u64, ScopeId>, sp_runtime::DispatchError> {
+        <Cps as ResourceAuthorization<u64>>::authorize(&actor, &context, Resource::Transaction)
+    }
+
+    fn local(owner: u64, scope: u64) -> ResourceContext<u64, ScopeId> {
+        ResourceContext {
+            owner,
+            local_id: Some(ScopeId(scope)),
+        }
+    }
+
+    #[test]
+    fn capability_encoding_is_stable() {
+        assert_eq!(Capability::CreateScope.encode(), vec![0]);
+        assert_eq!(Capability::Write.encode(), vec![1]);
+        assert_eq!(Capability::Transaction.encode(), vec![2]);
+        assert_eq!(
+            Capability::decode(&mut &[2u8][..]),
+            Ok(Capability::Transaction)
+        );
+        assert_eq!(Capability::CreateScope.index(), 0);
+        assert_eq!(Capability::Write.index(), 1);
+        assert_eq!(Capability::Transaction.index(), 2);
+    }
+
+    #[test]
+    fn transaction_capability_is_independent_from_other_capabilities() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_ok!(Cps::grant_access(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                ACTOR,
+                Capability::Write,
+                GrantMode::Node,
+            ));
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(1))),
+                Error::<Runtime>::AccessDenied
+            );
+            grant(1, GrantMode::Node);
+            assert_eq!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(1))),
+                Ok(local(OWNER, 0))
+            );
+            assert_eq!(
+                Cps::has_capability(NodeId(1), ACTOR, Capability::Transaction),
+                Ok(true)
+            );
+            assert_eq!(
+                Cps::has_capability(NodeId(2), ACTOR, Capability::Transaction),
+                Ok(false)
+            );
+        });
+    }
+
+    #[test]
+    fn account_context_requires_matching_actor_and_has_no_local_context() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(
+                authorize(OWNER, AuthorizationContext::Account(OWNER)),
+                Ok(ResourceContext {
+                    owner: OWNER,
+                    local_id: None
+                })
+            );
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::Account(OWNER)),
+                Error::<Runtime>::AccessDenied
+            );
+        });
+    }
+
+    #[test]
+    fn scope_owner_is_authorized_on_any_node_of_the_scope() {
+        new_test_ext().execute_with(|| {
+            setup();
+            for node in 0..=2 {
+                assert_eq!(
+                    authorize(OWNER, AuthorizationContext::Node(NodeId(node))),
+                    Ok(local(OWNER, 0))
+                );
+            }
+            // The nested Scope has its own accounting context.
+            assert_eq!(
+                authorize(OWNER, AuthorizationContext::Node(NodeId(3))),
+                Ok(local(OWNER, 1))
+            );
+        });
+    }
+
+    #[test]
+    fn node_grant_covers_only_the_granted_node() {
+        new_test_ext().execute_with(|| {
+            setup();
+            grant(1, GrantMode::Node);
+            assert_eq!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(1))),
+                Ok(local(OWNER, 0))
+            );
+            for node in [0, 2, 3] {
+                assert_noop!(
+                    authorize(ACTOR, AuthorizationContext::Node(NodeId(node))),
+                    Error::<Runtime>::AccessDenied
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn subtree_grant_covers_descendants_in_the_same_scope_only() {
+        new_test_ext().execute_with(|| {
+            setup();
+            grant(1, GrantMode::Subtree);
+            // Nodes of one Scope share one accounting context.
+            for node in [1, 2] {
+                assert_eq!(
+                    authorize(ACTOR, AuthorizationContext::Node(NodeId(node))),
+                    Ok(local(OWNER, 0))
+                );
+            }
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(0))),
+                Error::<Runtime>::AccessDenied
+            );
+            // The grant does not reach into the nested Scope.
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(3))),
+                Error::<Runtime>::AccessDenied
+            );
+        });
+    }
+
+    #[test]
+    fn missing_node_and_unsupported_resource_are_rejected() {
+        new_test_ext().execute_with(|| {
+            setup();
+            assert_noop!(
+                authorize(OWNER, AuthorizationContext::Node(NodeId(42))),
+                Error::<Runtime>::NodeNotFound
+            );
+            for resource in [Resource::Storage, Resource::Compute] {
+                assert_noop!(
+                    <Cps as ResourceAuthorization<u64>>::authorize(
+                        &OWNER,
+                        &AuthorizationContext::Node(NodeId(1)),
+                        resource,
+                    ),
+                    Error::<Runtime>::UnsupportedResource
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn node_identity_resolves_to_the_canonical_node_context() {
+        new_test_ext().execute_with(|| {
+            setup();
+            grant(1, GrantMode::Node);
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::NodeIdentity(IDENTITY)),
+                Error::<Runtime>::IdentityNotFound
+            );
+            assert_ok!(Cps::set_identity(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                OWNER,
+                None
+            ));
+            // Only the canonical node is addressed, never the identity.
+            assert_eq!(
+                authorize(ACTOR, AuthorizationContext::NodeIdentity(OWNER)),
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(1)))
+            );
+            assert_eq!(
+                authorize(ACTOR, AuthorizationContext::NodeIdentity(OWNER)),
+                Ok(local(OWNER, 0))
+            );
+        });
+    }
+
+    #[test]
+    fn changing_node_identity_keeps_the_local_context() {
+        new_test_ext().execute_with(|| {
+            setup();
+            grant(1, GrantMode::Node);
+            assert_ok!(Cps::set_identity(
+                RuntimeOrigin::signed(OWNER),
+                NodeId(1),
+                OWNER,
+                None
+            ));
+            let before = authorize(ACTOR, AuthorizationContext::NodeIdentity(OWNER)).unwrap();
+
+            assert_ok!(Cps::clear_identity(RuntimeOrigin::signed(OWNER), NodeId(1)));
+            assert_noop!(
+                authorize(ACTOR, AuthorizationContext::NodeIdentity(OWNER)),
+                Error::<Runtime>::IdentityNotFound
+            );
+            // The node is still addressable and keeps its Scope.
+            assert_eq!(
+                authorize(ACTOR, AuthorizationContext::Node(NodeId(1))),
+                Ok(before)
+            );
+        });
+    }
+}

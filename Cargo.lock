@@ -10913,6 +10913,7 @@ version = "1.2.1"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
+ "robonomics-subscription-primitives",
  "scale-info",
 ]
 
@@ -10959,6 +10960,51 @@ version = "1.8.1"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk",
+ "scale-info",
+]
+
+[[package]]
+name = "pallet-robonomics-subscription"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadot-sdk",
+ "robonomics-subscription-primitives",
+ "scale-info",
+]
+
+[[package]]
+name = "pallet-robonomics-subscription-governance"
+version = "0.1.0"
+dependencies = [
+ "pallet-robonomics-subscription",
+ "parity-scale-codec",
+ "polkadot-sdk",
+ "robonomics-subscription-primitives",
+ "scale-info",
+]
+
+[[package]]
+name = "pallet-robonomics-subscription-purchase"
+version = "0.1.0"
+dependencies = [
+ "pallet-robonomics-subscription",
+ "pallet-robonomics-subscription-governance",
+ "parity-scale-codec",
+ "polkadot-sdk",
+ "robonomics-subscription-primitives",
+ "scale-info",
+]
+
+[[package]]
+name = "pallet-robonomics-transaction"
+version = "0.1.0"
+dependencies = [
+ "pallet-robonomics-cps",
+ "pallet-robonomics-subscription",
+ "parity-scale-codec",
+ "polkadot-sdk",
+ "robonomics-subscription-primitives",
  "scale-info",
 ]
 
@@ -14909,9 +14955,14 @@ dependencies = [
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
+ "pallet-robonomics-subscription",
+ "pallet-robonomics-subscription-governance",
+ "pallet-robonomics-subscription-purchase",
+ "pallet-robonomics-transaction",
  "parity-scale-codec",
  "polkadot-sdk",
  "robonomics-collator-rewards",
+ "robonomics-subscription-primitives",
  "scale-info",
  "serde_json",
  "smallvec",
@@ -14937,9 +14988,19 @@ dependencies = [
  "parity-scale-codec",
  "robonomics-chain-spec",
  "robonomics-runtime-metadata",
+ "scale-info",
  "subxt 0.51.1",
  "subxt-signer 0.51.1",
  "tokio",
+]
+
+[[package]]
+name = "robonomics-subscription-primitives"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "polkadot-sdk",
+ "scale-info",
 ]
 
 [[package]]
