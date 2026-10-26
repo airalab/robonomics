@@ -271,18 +271,17 @@ mod subscription_purchase_xcm {
         frame_support::{assert_ok, BoundedVec},
         sp_io,
         staging_xcm::latest::prelude::*,
-        staging_xcm_executor::{traits::ConvertLocation, XcmExecutor},
+        staging_xcm_executor::{
+            self,
+            traits::{ConvertLocation, WeightBounds},
+            XcmExecutor,
+        },
     };
     use robonomics_runtime::{
         xcm_config::{AssetHubLocation, LocationToAccountId, UsdtId, XcmConfig},
         AccountId, Purchase, Runtime, RuntimeCall, RuntimeOrigin,
     };
     use robonomics_subscription_primitives::{Resource, ResourceAllocation};
-    use xcm::latest::prelude::*;
-    use xcm_executor::{
-        traits::{ConvertLocation, WeightBounds},
-        XcmExecutor,
-    };
 
     const USER: [u8; 32] = [7u8; 32];
     const PRICE: u128 = 1_000_000;
@@ -401,7 +400,7 @@ mod subscription_purchase_xcm {
                 assets,
                 beneficiary: user_location(),
             }]);
-            let weight = <<XcmConfig as xcm_executor::Config>::Weigher as WeightBounds<
+            let weight = <<XcmConfig as staging_xcm_executor::Config>::Weigher as WeightBounds<
                 RuntimeCall,
             >>::weight(&mut message, Weight::MAX)
             .expect("the message is weighable");
@@ -446,16 +445,6 @@ mod subscription_purchase_xcm {
 }
 
 mod subscription_transaction {
-    use frame_support::{
-        assert_ok,
-        dispatch::{DispatchInfo, GetDispatchInfo},
-        traits::{
-            fungible::{Inspect, Mutate},
-            Get,
-        },
-        BoundedVec,
-    };
-    use frame_system::RawOrigin;
     use pallet_robonomics_cps::{Capability, GrantMode, NodeId};
     use pallet_robonomics_subscription::Limit;
     use pallet_robonomics_transaction::{priority, ChargeTransaction};
@@ -463,7 +452,10 @@ mod subscription_transaction {
         frame_support::{
             assert_ok,
             dispatch::{DispatchInfo, GetDispatchInfo},
-            traits::fungible::{Inspect, Mutate},
+            traits::{
+                fungible::{Inspect, Mutate},
+                Get,
+            },
             BoundedVec,
         },
         frame_system::{self, RawOrigin},
@@ -722,24 +714,28 @@ mod subscription_transaction {
 }
 
 mod subscription_capacity {
-    use frame_support::{
-        dispatch::{DispatchClass, GetDispatchInfo},
-        traits::Get,
-    };
-    use frame_system::{
-        CheckEra, CheckGenesis, CheckNonZeroSender, CheckNonce, CheckSpecVersion, CheckTxVersion,
-        CheckWeight,
-    };
     use pallet_robonomics_cps::NodeId;
     use pallet_robonomics_transaction::ChargeTransaction;
     use parity_scale_codec::Encode;
+    use polkadot_sdk::{
+        cumulus_pallet_weight_reclaim, frame_metadata_hash_extension,
+        frame_support::{
+            dispatch::{DispatchClass, GetDispatchInfo},
+            traits::Get,
+        },
+        frame_system::{
+            self, CheckEra, CheckGenesis, CheckNonZeroSender, CheckNonce, CheckSpecVersion,
+            CheckTxVersion, CheckWeight,
+        },
+        sp_core,
+        sp_runtime::generic::Era,
+    };
     use robonomics_runtime::{
         AccountId, Address, MaxSubscriptionTransactionRate, Runtime, RuntimeBlockLength,
         RuntimeBlockWeights, RuntimeCall, Signature, Transaction, TransactionBurstPeriod,
         TxExtension, UncheckedExtrinsic, MIN_EXTRINSIC_LENGTH,
     };
     use robonomics_subscription_primitives::AuthorizationContext;
-    use sp_runtime::generic::Era;
 
     fn extrinsic(
         call: RuntimeCall,
