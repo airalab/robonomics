@@ -296,6 +296,23 @@ fn first_allocation_creates_generation_and_replacement_increments_it() {
 }
 
 #[test]
+fn allocation_creates_the_account_of_the_owner_once() {
+    new_test_ext().execute_with(|| {
+        assert!(!System::account_exists(&ALICE));
+        assert_ok!(allocate(ALICE, 5_000, 5));
+        assert!(System::account_exists(&ALICE));
+        assert_eq!(System::providers(&ALICE), 1);
+
+        // Replacement, revocation and expiry neither add nor drop references.
+        assert_ok!(allocate(ALICE, 5_000, 5));
+        assert_eq!(System::providers(&ALICE), 1);
+        assert_ok!(<Subscription as SubscriptionAllocator<u64>>::revoke(&ALICE));
+        assert!(System::account_exists(&ALICE));
+        assert_eq!(System::providers(&ALICE), 1);
+    });
+}
+
+#[test]
 fn generation_survives_revocation() {
     new_test_ext().execute_with(|| {
         assert_ok!(allocate(ALICE, 5_000, 5));
@@ -1052,4 +1069,39 @@ fn identical_allocations_give_identical_state_regardless_of_caller() {
         })
     };
     assert_eq!(state(ALICE), state(ALICE));
+}
+
+// ---------------------------------------------------------------------------
+// Allocator interface
+// ---------------------------------------------------------------------------
+
+#[test]
+fn is_active_follows_the_expiration_time() {
+    new_test_ext().execute_with(|| {
+        assert!(!<Subscription as SubscriptionAllocator<u64>>::is_active(
+            &ALICE
+        ));
+        assert_ok!(allocate(ALICE, 5_000, 1));
+        assert!(<Subscription as SubscriptionAllocator<u64>>::is_active(
+            &ALICE
+        ));
+        advance_time(5_000);
+        assert!(!<Subscription as SubscriptionAllocator<u64>>::is_active(
+            &ALICE
+        ));
+    });
+}
+
+#[test]
+fn allocate_weight_covers_every_agenda_probe_of_a_full_bucket() {
+    use frame_support::weights::Weight;
+
+    let weight = <Subscription as SubscriptionAllocator<u64>>::allocate_weight(1);
+    // A full bucket of `(u64, u64)` entries and its compact length prefix.
+    let bucket = 1 + 3 * (8 + 8);
+    let probes = Weight::from_parts(0, 16 * bucket)
+        .saturating_add(<() as WeightInfo>::allocate(1))
+        .saturating_add(Weight::from_parts(0, 16 * 64));
+    assert!(weight.proof_size() >= probes.proof_size());
+    assert!(weight.ref_time() > <() as WeightInfo>::allocate(1).ref_time());
 }

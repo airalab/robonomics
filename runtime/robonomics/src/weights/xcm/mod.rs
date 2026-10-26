@@ -125,7 +125,13 @@ impl<Call> XcmWeightInfo<Call> for RobonomicsXcmWeight<Call> {
     }
 
     fn deposit_asset(assets: &AssetFilter, _dest: &Location) -> Weight {
-        assets.weigh_assets(XcmFungibleWeight::<Runtime>::deposit_asset())
+        // Only the payment asset can be deposited and it buys the subscription
+        // product, which the benchmarked native deposit does not cover. The
+        // transactor accepts a single fungible asset, so at most one purchase
+        // happens per instruction, whatever the filter.
+        assets
+            .weigh_assets(XcmFungibleWeight::<Runtime>::deposit_asset())
+            .saturating_add(crate::Purchase::purchase_with_deposit_weight())
     }
     fn deposit_reserve_asset(assets: &AssetFilter, _dest: &Location, _xcm: &Xcm<()>) -> Weight {
         assets.weigh_assets(XcmFungibleWeight::<Runtime>::deposit_reserve_asset())

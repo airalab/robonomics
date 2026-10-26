@@ -32,5 +32,6 @@ Config::AllocateOrigin -> allocate(beneficiary, allocation)
 
 ## Weights
 
-`weights::SubstrateWeight` contains conservative estimates that include the
-allocator's work. Replace them with benchmarked weights.
+`weights::SubstrateWeight` contains conservative estimates of the pallet's own
+work; `allocate` adds `SubscriptionAllocator::allocate_weight`. Replace them with
+benchmarked weights.

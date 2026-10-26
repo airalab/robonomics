@@ -33,6 +33,7 @@ use polkadot_sdk::sp_runtime::{BuildStorage, DispatchError, DispatchResult};
 use robonomics_subscription_primitives::{
     Resource, ResourceAllocation, ResourceLimit, SubscriptionAllocation, SubscriptionAllocator,
 };
+use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Weight};
 use std::cell::RefCell;
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -134,6 +135,14 @@ impl SubscriptionAllocator<u64> for Recorder {
     fn revoke(owner: &u64) -> DispatchResult {
         CALLS.with(|calls| calls.borrow_mut().push(Call::Revoke(*owner)));
         <Subscription as SubscriptionAllocator<u64>>::revoke(owner)
+    }
+
+    fn is_active(owner: &u64) -> bool {
+        <Subscription as SubscriptionAllocator<u64>>::is_active(owner)
+    }
+
+    fn allocate_weight(resources: u32) -> Weight {
+        <Subscription as SubscriptionAllocator<u64>>::allocate_weight(resources)
     }
 }
 

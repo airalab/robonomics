@@ -453,6 +453,14 @@ impl SubscriptionAllocator<AccountId> for Allocator {
     fn revoke(_owner: &AccountId) -> DispatchResult {
         Ok(())
     }
+
+    fn is_active(_owner: &AccountId) -> bool {
+        false
+    }
+
+    fn allocate_weight(_resources: u32) -> Weight {
+        Weight::zero()
+    }
 }
 
 #[test]

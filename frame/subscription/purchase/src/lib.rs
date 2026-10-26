@@ -52,6 +52,10 @@
 //! - A purchase is atomic and has no effect on failure.
 //! - A purchase replaces the current subscription generation of the
 //!   beneficiary. Unused time and resources never roll over.
+//! - A deposit may name any beneficiary, so a purchase never replaces an
+//!   active subscription unless the beneficiary consented with
+//!   [`Pallet::set_replacement_consent`]. A gift to an account without an
+//!   active subscription needs no consent.
 //! - Changing or disabling a product affects future purchases only.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -143,6 +147,11 @@ pub mod pallet {
     #[pallet::storage]
     pub type NextProductId<T: Config> = StorageValue<_, ProductId, ValueQuery>;
 
+    /// Accounts that allow a purchase to replace their active subscription.
+    #[pallet::storage]
+    pub type ReplacementConsent<T: Config> =
+        StorageMap<_, Blake2_128Concat, T::AccountId, bool, ValueQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -158,6 +167,12 @@ pub mod pallet {
             product_id: ProductId,
             paid: T::Balance,
         },
+        /// An account changed whether purchases may replace its active
+        /// subscription.
+        ReplacementConsentSet {
+            account: T::AccountId,
+            allowed: bool,
+        },
     }
 
     #[pallet::error]
@@ -170,9 +185,21 @@ pub mod pallet {
         ProductIdOverflow,
         /// The deposit does not cover the price of the product.
         DepositBelowPrice,
+        /// The beneficiary has an active subscription and did not consent to
+        /// its replacement by a purchase.
+        ReplacementNotConsented,
     }
 
     impl<T: Config> Pallet<T> {
+        /// Worst-case weight of [`Pallet::purchase_with_deposit`]: the pallet's
+        /// own reads plus the allocation of a product with the maximum number
+        /// of resources, which also bounds a failed allocation.
+        pub fn purchase_with_deposit_weight() -> Weight {
+            T::WeightInfo::purchase_with_deposit().saturating_add(T::Allocator::allocate_weight(
+                <MaxResourcesOf<T> as Get<u32>>::get(),
+            ))
+        }
+
         /// Buy [`Config::DepositProduct`] for `beneficiary` with a deposit of
         /// `amount`.
         ///
@@ -180,8 +207,12 @@ pub mod pallet {
         /// which then burns the whole deposit: the pallet holds nothing and an
         /// excess over the price is not refunded. Fails without effect when the
         /// deposit is below the price, the product is missing or disabled, or
-        /// the allocation fails (for example `GlobalRateCapacityExceeded`), so
-        /// the caller can reject the deposit.
+        /// the allocation fails (for example `GlobalRateCapacityExceeded`), or
+        /// the beneficiary has an active subscription and has not consented to
+        /// its replacement with [`Pallet::set_replacement_consent`], so the
+        /// caller can reject the deposit.
+        ///
+        /// The caller charges [`Pallet::purchase_with_deposit_weight`].
         pub fn purchase_with_deposit(
             beneficiary: &T::AccountId,
             amount: T::Balance,
@@ -191,6 +222,11 @@ pub mod pallet {
                 let product = Products::<T>::get(product_id).ok_or(Error::<T>::UnknownProduct)?;
                 ensure!(product.enabled, Error::<T>::ProductDisabled);
                 ensure!(amount >= product.price, Error::<T>::DepositBelowPrice);
+                ensure!(
+                    !T::Allocator::is_active(beneficiary)
+                        || ReplacementConsent::<T>::get(beneficiary),
+                    Error::<T>::ReplacementNotConsented
+                );
 
                 T::Allocator::allocate(beneficiary, product.allocation())?;
 
@@ -272,6 +308,24 @@ pub mod pallet {
                 Ok(())
             })?;
             Self::deposit_event(Event::ProductDisabled { product_id });
+            Ok(())
+        }
+
+        /// Allow or forbid a purchase made for the signer to replace its
+        /// active subscription.
+        ///
+        /// A deposit can name any beneficiary. Without consent a purchase
+        /// only reaches accounts that have no active subscription.
+        #[pallet::call_index(3)]
+        #[pallet::weight(T::WeightInfo::set_replacement_consent())]
+        pub fn set_replacement_consent(origin: OriginFor<T>, allowed: bool) -> DispatchResult {
+            let account = ensure_signed(origin)?;
+            if allowed {
+                ReplacementConsent::<T>::insert(&account, true);
+            } else {
+                ReplacementConsent::<T>::remove(&account);
+            }
+            Self::deposit_event(Event::ReplacementConsentSet { account, allowed });
             Ok(())
         }
     }

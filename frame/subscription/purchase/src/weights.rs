@@ -37,6 +37,11 @@ pub trait WeightInfo {
     fn update_product(resources: u32) -> Weight;
     /// `disable_product`.
     fn disable_product() -> Weight;
+    /// `set_replacement_consent`.
+    fn set_replacement_consent() -> Weight;
+    /// The reads and the event of `purchase_with_deposit`, excluding the
+    /// allocation, which `Pallet::purchase_with_deposit_weight` adds.
+    fn purchase_with_deposit() -> Weight;
 }
 
 /// Conservative weights derived from storage access counts. They should be
@@ -63,6 +68,17 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(1))
     }
+
+    fn set_replacement_consent() -> Weight {
+        Weight::from_parts(10_000_000, 2_000).saturating_add(T::DbWeight::get().writes(1))
+    }
+
+    fn purchase_with_deposit() -> Weight {
+        // Product, replacement consent and the event.
+        Weight::from_parts(10_000_000, 4_000)
+            .saturating_add(T::DbWeight::get().reads(2))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
 }
 
 impl WeightInfo for () {
@@ -83,6 +99,17 @@ impl WeightInfo for () {
     fn disable_product() -> Weight {
         Weight::from_parts(10_000_000, 2_000)
             .saturating_add(RocksDbWeight::get().reads(1))
+            .saturating_add(RocksDbWeight::get().writes(1))
+    }
+
+    fn set_replacement_consent() -> Weight {
+        Weight::from_parts(10_000_000, 2_000).saturating_add(RocksDbWeight::get().writes(1))
+    }
+
+    fn purchase_with_deposit() -> Weight {
+        // Product, replacement consent and the event.
+        Weight::from_parts(10_000_000, 4_000)
+            .saturating_add(RocksDbWeight::get().reads(2))
             .saturating_add(RocksDbWeight::get().writes(1))
     }
 }

@@ -351,6 +351,7 @@ fn purchase_replaces_previous_generation() {
     new_test_ext().execute_with(|| {
         create_deposit_product();
         assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
+        assert_ok!(Purchase::set_replacement_consent(signed(ALICE), true));
         NOW.with(|now| *now.borrow_mut() += 1_000);
         assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
 
@@ -514,4 +515,74 @@ fn allocators_share_capacity_admission() {
             )
         );
     });
+}
+
+#[test]
+fn third_party_purchase_cannot_replace_an_active_subscription() {
+    new_test_ext().execute_with(|| {
+        create_deposit_product();
+        assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
+        let subscription = subscription_of(ALICE);
+        let events = System::events().len();
+
+        assert_noop!(
+            Purchase::purchase_with_deposit(&ALICE, 100),
+            Error::<Runtime>::ReplacementNotConsented
+        );
+        assert_eq!(subscription_of(ALICE), subscription);
+        assert_eq!(System::events().len(), events);
+    });
+}
+
+#[test]
+fn expired_subscription_is_replaced_without_consent() {
+    new_test_ext().execute_with(|| {
+        create_deposit_product();
+        assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
+        NOW.with(|now| *now.borrow_mut() += 5_000);
+
+        assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
+        assert_eq!(LastGeneration::<Runtime>::get(ALICE), 2);
+    });
+}
+
+#[test]
+fn consent_can_be_withdrawn() {
+    new_test_ext().execute_with(|| {
+        create_deposit_product();
+        assert_ok!(Purchase::purchase_with_deposit(&ALICE, 100));
+
+        assert_ok!(Purchase::set_replacement_consent(signed(ALICE), true));
+        System::assert_last_event(
+            Event::<Runtime>::ReplacementConsentSet {
+                account: ALICE,
+                allowed: true,
+            }
+            .into(),
+        );
+        assert_ok!(Purchase::set_replacement_consent(signed(ALICE), false));
+        assert!(!ReplacementConsent::<Runtime>::contains_key(ALICE));
+        assert_noop!(
+            Purchase::purchase_with_deposit(&ALICE, 100),
+            Error::<Runtime>::ReplacementNotConsented
+        );
+    });
+}
+
+#[test]
+fn consent_requires_a_signed_origin() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Purchase::set_replacement_consent(root(), true),
+            DispatchError::BadOrigin
+        );
+    });
+}
+
+#[test]
+fn deposit_weight_includes_the_allocation() {
+    let allocation = <Subscription as SubscriptionAllocator<u64>>::allocate_weight(3);
+    let weight = Purchase::purchase_with_deposit_weight();
+    assert!(weight.all_gte(allocation));
+    assert!(weight.proof_size() > allocation.proof_size());
 }

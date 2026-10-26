@@ -21,6 +21,7 @@ use core::fmt::Debug;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use polkadot_sdk::sp_runtime::{traits::Get, BoundedVec, DispatchResult};
 use scale_info::TypeInfo;
+use sp_runtime::{traits::Get, BoundedVec, DispatchResult, Weight};
 
 /// Entitlement to one resource.
 ///
@@ -120,4 +121,17 @@ pub trait SubscriptionAllocator<AccountId> {
 
     /// Revoke the current subscription of `owner`.
     fn revoke(owner: &AccountId) -> DispatchResult;
+
+    /// Whether `owner` has a subscription that is not expired.
+    ///
+    /// Allocation replaces the current subscription, so allocators use this
+    /// to decide whether a replacement needs the consent of the owner.
+    fn is_active(owner: &AccountId) -> bool;
+
+    /// Worst-case weight of [`SubscriptionAllocator::allocate`] with
+    /// `resources` resources, including a failed allocation.
+    ///
+    /// Allocators and callers that forward to `allocate` add it to their own
+    /// weight.
+    fn allocate_weight(resources: u32) -> Weight;
 }

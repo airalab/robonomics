@@ -32,8 +32,16 @@ use polkadot_sdk::{
 /// allocators, `consume_*` and `correct` by resource consumers, and the
 /// expiration weights are charged by `on_initialize`.
 pub trait WeightInfo {
-    /// `allocate` replacing a subscription with `resources` resources.
+    /// `allocate` replacing a subscription with `resources` resources,
+    /// without the expiration agenda search, which is weighed with
+    /// [`WeightInfo::agenda_probe`].
     fn allocate(resources: u32) -> Weight;
+    /// Reading one expiration agenda bucket while looking for a free one.
+    /// `bucket_proof_size` is the maximum encoded size of a full bucket.
+    ///
+    /// `allocate` probes up to `MAX_AGENDA_PROBES` buckets, including when it
+    /// fails with `ExpirationAgendaFull`.
+    fn agenda_probe(bucket_proof_size: u32) -> Weight;
     /// `revoke` of a subscription with `resources` resources.
     fn revoke(resources: u32) -> Weight;
     /// `consume_global`.
@@ -57,8 +65,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn allocate(resources: u32) -> Weight {
         Weight::from_parts(40_000_000, 4_000)
             .saturating_add(Weight::from_parts(10_000_000, 1_000).saturating_mul(resources.into()))
-            .saturating_add(T::DbWeight::get().reads(6_u64.saturating_add(2 * resources as u64)))
-            .saturating_add(T::DbWeight::get().writes(6_u64.saturating_add(3 * resources as u64)))
+            .saturating_add(T::DbWeight::get().reads(7_u64.saturating_add(2 * resources as u64)))
+            .saturating_add(T::DbWeight::get().writes(7_u64.saturating_add(3 * resources as u64)))
+    }
+
+    fn agenda_probe(bucket_proof_size: u32) -> Weight {
+        // The storage key (prefix, hash and moment) is part of the proof too.
+        Weight::from_parts(2_000_000, u64::from(bucket_proof_size).saturating_add(64))
+            .saturating_add(T::DbWeight::get().reads(1))
     }
 
     fn revoke(resources: u32) -> Weight {
@@ -103,8 +117,13 @@ impl WeightInfo for () {
     fn allocate(resources: u32) -> Weight {
         Weight::from_parts(40_000_000, 4_000)
             .saturating_add(Weight::from_parts(10_000_000, 1_000).saturating_mul(resources.into()))
-            .saturating_add(RocksDbWeight::get().reads(6_u64.saturating_add(2 * resources as u64)))
-            .saturating_add(RocksDbWeight::get().writes(6_u64.saturating_add(3 * resources as u64)))
+            .saturating_add(RocksDbWeight::get().reads(7_u64.saturating_add(2 * resources as u64)))
+            .saturating_add(RocksDbWeight::get().writes(7_u64.saturating_add(3 * resources as u64)))
+    }
+
+    fn agenda_probe(bucket_proof_size: u32) -> Weight {
+        Weight::from_parts(2_000_000, u64::from(bucket_proof_size).saturating_add(64))
+            .saturating_add(RocksDbWeight::get().reads(1))
     }
 
     fn revoke(resources: u32) -> Weight {

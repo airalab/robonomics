@@ -112,7 +112,10 @@ pub mod pallet {
         /// Fails with the allocator's error when the allocation is invalid or
         /// cannot be admitted, leaving no state change behind.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::allocate(allocation.resources.len() as u32))]
+        #[pallet::weight(
+            T::WeightInfo::allocate()
+                .saturating_add(T::Allocator::allocate_weight(allocation.resources.len() as u32))
+        )]
         pub fn allocate(
             origin: OriginFor<T>,
             beneficiary: T::AccountId,

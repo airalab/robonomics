@@ -41,7 +41,8 @@ bought by a USDT deposit over XCM).
   stale entries never release a replacement's capacity. Consumption is
   rejected exactly from `expires_at`; capacity is released at most one
   `ExpirationBucketSize` later (more under load, bounded by
-  `MaxExpirationsPerBlock`).
+  `MaxExpirationsPerBlock`, which must be at least two: one unit scans a
+  bucket and the rest process its entries).
 - **Local accounting.** State is keyed by `(owner, LocalId, resource)`,
   where `LocalId` is opaque. The local rate comes only from
   `Config::ResourceLimits`; a missing limit forbids local consumption. Local

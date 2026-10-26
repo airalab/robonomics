@@ -626,13 +626,89 @@ impl robonomics_subscription_primitives::ResourceLimit for NoLocalResourceLimits
 }
 
 parameter_types! {
-    /// Network capacity reserved for subscription Transaction rates:
-    /// 1 XRT per second, in Wn per millisecond.
-    pub const MaxSubscriptionTransactionRate: Balance = XRT / 1_000;
     /// Idle time a Transaction bucket may accumulate, in milliseconds.
     pub const TransactionBurstPeriod: u64 = 2 * MILLISECS_PER_BLOCK;
     /// Granularity of the subscription expiration agenda, in milliseconds.
     pub const ExpirationBucketSize: u64 = MILLISECS_PER_BLOCK;
+}
+
+/// Lower bound of the encoded size of a signed extrinsic, in bytes: a
+/// compact length prefix, the version, a `MultiAddress::Id`, an sr25519
+/// `MultiSignature`, the transaction extensions and an empty call.
+pub const MIN_EXTRINSIC_LENGTH: u32 = 100;
+
+/// Network capacity reserved for subscription Transaction rates, in `Wn` per
+/// millisecond.
+///
+/// Subscribers spend their allocated rates without paying, so the rates must
+/// never admit more work than a block can execute. A bucket accumulates
+/// `rate * TransactionBurstPeriod`, which is the most a subscriber can spend
+/// in one block. The cheapest possible transaction pays no more than the
+/// baseline cost of its mandatory overhead (the base extrinsic weight, the
+/// subscription charge extension and the minimal encoded length), so even
+/// when all capacity is spent on such transactions
+///
+/// ```text
+/// rate * TransactionBurstPeriod / minimal_cost <= transactions_per_block
+/// ```
+///
+/// where `transactions_per_block` is the number of overheads fitting in the
+/// tightest of the reference time, proof size and length budgets of the
+/// `Normal` dispatch class. The budgets exclude the block base weight and
+/// the average `on_initialize` weight, and all transactions are assumed to
+/// carry no call weight, the worst case.
+pub struct MaxSubscriptionTransactionRate;
+
+impl MaxSubscriptionTransactionRate {
+    /// Number of the cheapest possible subscription transactions a block can
+    /// hold.
+    pub fn transactions_per_block() -> u64 {
+        let weights = RuntimeBlockWeights::get();
+        let class = weights.get(DispatchClass::Normal);
+        let reserved = weights
+            .base_block
+            .saturating_add(AVERAGE_ON_INITIALIZE_RATIO * weights.max_block);
+        let budget = class
+            .max_total
+            .unwrap_or(weights.max_block)
+            .saturating_sub(reserved);
+        let overhead = Self::overhead();
+        let by_time = budget.ref_time() / overhead.ref_time().max(1);
+        let by_proof = budget.proof_size() / overhead.proof_size().max(1);
+        let by_length =
+            RuntimeBlockLength::get().max.get(DispatchClass::Normal) / MIN_EXTRINSIC_LENGTH;
+        by_time.min(by_proof).min(u64::from(by_length))
+    }
+
+    /// Weight every subscription transaction pays regardless of its call.
+    fn overhead() -> Weight {
+        let class_weights = RuntimeBlockWeights::get();
+        class_weights
+            .get(DispatchClass::Normal)
+            .base_extrinsic
+            .saturating_add(
+                <<Runtime as pallet_robonomics_transaction::Config>::WeightInfo as
+                    pallet_robonomics_transaction::WeightInfo>::subscription_charge(),
+            )
+    }
+
+    /// Baseline cost of the cheapest possible subscription transaction.
+    pub fn minimal_cost() -> Balance {
+        Transaction::baseline_cost(
+            MIN_EXTRINSIC_LENGTH,
+            Self::overhead(),
+            frame_support::pallet_prelude::Pays::Yes,
+            DispatchClass::Normal,
+        )
+    }
+}
+
+impl frame_support::traits::Get<Balance> for MaxSubscriptionTransactionRate {
+    fn get() -> Balance {
+        let spendable =
+            Balance::from(Self::transactions_per_block()).saturating_mul(Self::minimal_cost());
+        spendable / Balance::from(TransactionBurstPeriod::get())
+    }
 }
 
 impl pallet_robonomics_subscription::Config for Runtime {

@@ -48,7 +48,11 @@
 //! available = min(available + rate * elapsed_ms, rate * TransactionBurstPeriod)
 //! ```
 //!
-//! A new generation starts with an empty bucket. The sum of all allocated
+//! A new generation starts with an empty bucket. The allocation also creates
+//! the owner account if it does not exist: subscription transactions pay no
+//! fee, so the owner may hold no balance, and `CheckNonce` rejects signers
+//! without an account. The provider reference is never released, so that the
+//! nonce survives the subscription. The sum of all allocated
 //! rates is kept in [`TotalAllocatedTransactionRate`] in O(1) and never
 //! exceeds [`Config::MaxSubscriptionTransactionRate`].
 //!
@@ -166,7 +170,9 @@ pub mod pallet {
         type MaxExpirationsPerBucket: Get<u32>;
 
         /// Maximum amount of agenda work (scanned buckets plus processed
-        /// entries) done in one block. Must not be zero.
+        /// entries) done in one block. Must be at least two: scanning a bucket
+        /// costs one unit, so with a single unit no entry would ever be
+        /// processed and a non-empty bucket would block the agenda.
         #[pallet::constant]
         type MaxExpirationsPerBlock: Get<u32>;
 
@@ -327,8 +333,8 @@ pub mod pallet {
                 "MaxExpirationsPerBucket must not be zero"
             );
             assert!(
-                T::MaxExpirationsPerBlock::get() > 0,
-                "MaxExpirationsPerBlock must not be zero"
+                T::MaxExpirationsPerBlock::get() >= 2,
+                "MaxExpirationsPerBlock must allow scanning a bucket and processing an entry"
             );
         }
     }
@@ -651,6 +657,20 @@ pub mod pallet {
             weight
         }
 
+        /// Create the account of `owner` if it has no reference to exist.
+        ///
+        /// Subscription transactions pay no fee, so the owner may hold no
+        /// balance, and `CheckNonce` rejects signers whose account does not
+        /// exist (`InvalidTransaction::Payment`). The provider reference is
+        /// intentionally never released: reaping the account would reset its
+        /// nonce and make old transactions replayable.
+        fn ensure_account(owner: &T::AccountId) {
+            let account = frame_system::Account::<T>::get(owner);
+            if account.providers.is_zero() && account.sufficients.is_zero() {
+                frame_system::Pallet::<T>::inc_providers(owner);
+            }
+        }
+
         fn do_allocate(owner: &T::AccountId, allocation: AllocationOf<T>) -> DispatchResult {
             let started_at = T::Time::now();
             ensure!(!allocation.valid_for.is_zero(), Error::<T>::ZeroDuration);
@@ -692,6 +712,7 @@ pub mod pallet {
                 .ok_or(ArithmeticError::Overflow)?;
 
             Self::schedule_expiration(owner, generation, expires_at)?;
+            Self::ensure_account(owner);
             Self::clear_allocations(owner);
             TotalAllocatedTransactionRate::<T>::put(next_total);
             LastGeneration::<T>::insert(owner, generation);
@@ -828,6 +849,25 @@ pub mod pallet {
                 generation: subscription.generation,
             });
             Ok(())
+        }
+
+        fn is_active(owner: &T::AccountId) -> bool {
+            Subscriptions::<T>::get(owner)
+                .is_some_and(|subscription| T::Time::now() < subscription.expires_at)
+        }
+
+        /// Allocation weight including the worst-case expiration agenda
+        /// search: `MAX_AGENDA_PROBES` full buckets are read even when the
+        /// allocation fails with `ExpirationAgendaFull`.
+        fn allocate_weight(resources: u32) -> Weight {
+            let bucket_proof_size = BoundedVec::<
+                (T::AccountId, ResourceGeneration),
+                T::MaxExpirationsPerBucket,
+            >::max_encoded_len();
+            T::WeightInfo::allocate(resources).saturating_add(
+                T::WeightInfo::agenda_probe(u32::try_from(bucket_proof_size).unwrap_or(u32::MAX))
+                    .saturating_mul(MAX_AGENDA_PROBES.into()),
+            )
         }
     }
 

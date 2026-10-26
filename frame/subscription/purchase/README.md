@@ -19,6 +19,7 @@ deposit <  price --> rejected, the deposit stays with the sender
 | `create_product(price, valid_for, resources)` | `ManagementOrigin` | Add an enabled product. |
 | `update_product(id, price, valid_for, resources)` | `ManagementOrigin` | Replace a template; affects future purchases only. |
 | `disable_product(id)` | `ManagementOrigin` | Stop sales of a product. |
+| `set_replacement_consent(allowed)` | Signed | Allow or forbid a purchase to replace the signer's active subscription. |
 
 There is no purchase extrinsic: a purchase is the deposit itself, through
 `Pallet::purchase_with_deposit(beneficiary, amount)`, which the runtime calls
@@ -36,7 +37,9 @@ product deposits buy.
 - The pallet holds no asset and keeps no credit. A deposit that covers the
   price is burned as a whole; an excess is not refunded.
 - A purchase replaces the beneficiary's current generation; nothing rolls
-  over.
+  over. A deposit may name any beneficiary, so an active subscription is
+  replaced only if its owner consented with `set_replacement_consent`; a gift
+  to an account without an active subscription needs no consent.
 - The subscription pallet never learns the price or the product id, so a
   purchase and a governance allocation of the same allocation produce
   identical subscription state.
@@ -63,4 +66,5 @@ appendix; otherwise it is trapped and claimable.
 
 `weights::SubstrateWeight` contains conservative estimates. Replace them with
 benchmarked weights. The deposit itself is weighed by the runtime's XCM
-weigher.
+weigher with `Pallet::purchase_with_deposit_weight()`, which includes the
+worst-case allocation of the subscription pallet.
