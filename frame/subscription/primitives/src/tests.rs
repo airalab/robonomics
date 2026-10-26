@@ -19,7 +19,7 @@
 
 use super::*;
 use parity_scale_codec::{Decode, Encode};
-use polkadot_sdk::sp_runtime::{self, traits::ConstU32, DispatchError, DispatchResult};
+use polkadot_sdk::sp_runtime::{self, traits::ConstU32, DispatchError, DispatchResult, Weight};
 
 type AccountId = u64;
 

@@ -32,6 +32,7 @@ use polkadot_sdk::sp_io;
 use polkadot_sdk::sp_runtime::{BuildStorage, DispatchError};
 use robonomics_subscription_primitives::{
     Resource, ResourceAllocation, ResourceLimit, SubscriptionAllocation,
+    SubscriptionAllocator,
 };
 use std::cell::RefCell;
 

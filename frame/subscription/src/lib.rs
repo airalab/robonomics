@@ -665,9 +665,9 @@ pub mod pallet {
         /// intentionally never released: reaping the account would reset its
         /// nonce and make old transactions replayable.
         fn ensure_account(owner: &T::AccountId) {
-            let account = frame_system::Account::<T>::get(owner);
+            let account = polkadot_sdk::frame_system::Account::<T>::get(owner);
             if account.providers.is_zero() && account.sufficients.is_zero() {
-                frame_system::Pallet::<T>::inc_providers(owner);
+                polkadot_sdk::frame_system::Pallet::<T>::inc_providers(owner);
             }
         }
 

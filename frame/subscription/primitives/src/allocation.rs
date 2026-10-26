@@ -19,9 +19,8 @@
 
 use core::fmt::Debug;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use polkadot_sdk::sp_runtime::{traits::Get, BoundedVec, DispatchResult};
+use polkadot_sdk::sp_runtime::{traits::Get, BoundedVec, DispatchResult, Weight};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Get, BoundedVec, DispatchResult, Weight};
 
 /// Entitlement to one resource.
 ///
