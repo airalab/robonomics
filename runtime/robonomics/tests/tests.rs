@@ -264,3 +264,548 @@ mod cps_view_functions {
         });
     }
 }
+
+mod subscription_purchase_xcm {
+    use pallet_robonomics_subscription::{Limit, Subscriptions};
+    use polkadot_sdk::{
+        frame_support::{assert_ok, BoundedVec},
+        sp_io,
+        staging_xcm::latest::prelude::*,
+        staging_xcm_executor::{
+            self,
+            traits::{ConvertLocation, WeightBounds},
+            XcmExecutor,
+        },
+    };
+    use robonomics_runtime::{
+        xcm_config::{AssetHubLocation, LocationToAccountId, UsdtId, XcmConfig},
+        AccountId, Purchase, Runtime, RuntimeCall, RuntimeOrigin,
+    };
+    use robonomics_subscription_primitives::{Resource, ResourceAllocation};
+
+    const USER: [u8; 32] = [7u8; 32];
+    const PRICE: u128 = 1_000_000;
+    const FEE_BUDGET: u128 = PRICE / 10;
+
+    /// The user as seen from this chain: an account of AssetHub.
+    fn user_location() -> Location {
+        Location::new(
+            1,
+            [
+                Parachain(1000),
+                AccountId32 {
+                    network: None,
+                    id: USER,
+                },
+            ],
+        )
+    }
+
+    fn user_account() -> AccountId {
+        LocationToAccountId::convert_location(&user_location()).expect("location converts")
+    }
+
+    fn usdt(amount: u128) -> Asset {
+        (UsdtId::get(), amount).into()
+    }
+
+    fn create_product(rate: u128) {
+        assert_ok!(Purchase::create_product(
+            RuntimeOrigin::root(),
+            PRICE,
+            60_000,
+            BoundedVec::truncate_from(vec![ResourceAllocation {
+                resource: Resource::Transaction,
+                limit: Limit::Transaction(rate),
+            }]),
+        ));
+    }
+
+    /// Message AssetHub sends to deposit `deposit` USDT to the user.
+    fn deposit_message(deposit: u128) -> Xcm<RuntimeCall> {
+        Xcm(vec![
+            ReserveAssetDeposited(usdt(deposit).into()),
+            BuyExecution {
+                fees: usdt(FEE_BUDGET),
+                weight_limit: Unlimited,
+            },
+            DepositAsset {
+                assets: Wild(AllCounted(1)),
+                beneficiary: user_location(),
+            },
+        ])
+    }
+
+    fn execute(origin: Location, message: Xcm<RuntimeCall>) -> Outcome {
+        let mut id = [0u8; 32];
+        XcmExecutor::<XcmConfig>::prepare_and_execute(
+            origin,
+            message,
+            &mut id,
+            Weight::from_parts(10_000_000_000, 1_000_000),
+            Weight::zero(),
+        )
+    }
+
+    #[test]
+    fn deposit_from_asset_hub_buys_the_product() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(100);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Complete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_some());
+        });
+    }
+
+    #[test]
+    fn deposit_cannot_replace_an_active_subscription_without_consent() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(100);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Complete { .. }), "{outcome:?}");
+            let bought = Subscriptions::<Runtime>::get(user_account());
+
+            // Anyone can name the user as the beneficiary of a deposit.
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+            assert_eq!(Subscriptions::<Runtime>::get(user_account()), bought);
+
+            assert_ok!(Purchase::set_replacement_consent(
+                RuntimeOrigin::signed(user_account()),
+                true
+            ));
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Complete { .. }), "{outcome:?}");
+            assert_eq!(
+                Subscriptions::<Runtime>::get(user_account()).map(|sub| sub.generation),
+                Some(2)
+            );
+        });
+    }
+
+    #[test]
+    fn deposit_instruction_weight_covers_the_purchase_for_every_filter() {
+        let purchase = Purchase::purchase_with_deposit_weight();
+        for assets in [
+            Wild(All),
+            Wild(AllCounted(1)),
+            Wild(AllOf {
+                id: UsdtId::get(),
+                fun: WildFungible,
+            }),
+            Definite(usdt(PRICE).into()),
+        ] {
+            let mut message = Xcm::<RuntimeCall>(vec![DepositAsset {
+                assets,
+                beneficiary: user_location(),
+            }]);
+            let weight = <<XcmConfig as staging_xcm_executor::Config>::Weigher as WeightBounds<
+                RuntimeCall,
+            >>::weight(&mut message, Weight::MAX)
+            .expect("the message is weighable");
+            assert!(weight.all_gte(purchase), "{message:?}: {weight:?}");
+        }
+    }
+
+    #[test]
+    fn deposit_below_the_price_is_rejected() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(100);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(PRICE - 1));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+
+    #[test]
+    fn deposit_is_rejected_when_the_allocation_fails() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            // Far above the capacity reserved for subscriptions.
+            create_product(u128::MAX / 2);
+            let outcome = execute(AssetHubLocation::get(), deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+
+    #[test]
+    fn deposit_is_rejected_from_other_chains() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            create_product(100);
+            let sibling = Location::new(1, [Parachain(2000)]);
+            let outcome = execute(sibling, deposit_message(2 * PRICE));
+            assert!(matches!(outcome, Outcome::Incomplete { .. }), "{outcome:?}");
+
+            assert!(Subscriptions::<Runtime>::get(user_account()).is_none());
+        });
+    }
+}
+
+mod subscription_transaction {
+    use pallet_robonomics_cps::{Capability, GrantMode, NodeId};
+    use pallet_robonomics_subscription::Limit;
+    use pallet_robonomics_transaction::{priority, ChargeTransaction};
+    use polkadot_sdk::{
+        frame_support::{
+            assert_ok,
+            dispatch::{DispatchInfo, GetDispatchInfo},
+            traits::{
+                fungible::{Inspect, Mutate},
+                Get,
+            },
+            BoundedVec,
+        },
+        frame_system::{self, RawOrigin},
+        pallet_timestamp, pallet_transaction_payment, sp_io,
+        sp_runtime::{
+            traits::{DispatchTransaction, TransactionExtension},
+            transaction_validity::{InvalidTransaction, TransactionSource},
+        },
+    };
+    use robonomics_runtime::{
+        AccountId, Balances, MaxSubscriptionTransactionRate, Runtime, RuntimeCall, Subscription,
+        Transaction, TxExtension, CPS, XRT,
+    };
+    use robonomics_subscription_primitives::{
+        AuthorizationContext, Resource, ResourceAllocation, SubscriptionAllocation,
+        SubscriptionAllocator,
+    };
+
+    const LEN: usize = 100;
+
+    fn account(id: u8) -> AccountId {
+        AccountId::new([id; 32])
+    }
+
+    fn call() -> RuntimeCall {
+        RuntimeCall::System(frame_system::Call::remark { remark: vec![] })
+    }
+
+    fn info() -> DispatchInfo {
+        call().get_dispatch_info()
+    }
+
+    fn set_time(now: u64) {
+        pallet_timestamp::Now::<Runtime>::put(now);
+    }
+
+    /// Subscribe `owner` with the whole network Transaction capacity and let
+    /// the bucket fill.
+    fn subscribe(owner: &AccountId) -> u64 {
+        set_time(1_000);
+        assert_ok!(Subscription::allocate(
+            owner,
+            SubscriptionAllocation {
+                valid_for: 10_000_000,
+                resources: BoundedVec::truncate_from(vec![ResourceAllocation {
+                    resource: Resource::Transaction,
+                    limit: Limit::Transaction(MaxSubscriptionTransactionRate::get()),
+                }]),
+            }
+        ));
+        set_time(1_000 + 6_000);
+        pallet_robonomics_subscription::Subscriptions::<Runtime>::get(owner)
+            .unwrap()
+            .generation
+    }
+
+    #[test]
+    fn runtime_routes_payment_through_charge_transaction() {
+        let identifiers: Vec<_> = <TxExtension as TransactionExtension<RuntimeCall>>::metadata()
+            .into_iter()
+            .map(|extension| extension.identifier)
+            .collect();
+        assert!(identifiers.contains(&"ChargeTransaction"));
+        assert!(!identifiers.contains(&"ChargeTransactionPayment"));
+        assert_eq!(robonomics_runtime::VERSION.transaction_version, 5);
+    }
+
+    #[test]
+    fn fee_mode_keeps_ordinary_payment() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let who = account(1);
+            assert_ok!(Balances::mint_into(&who, 1_000 * XRT));
+            let before = Balances::balance(&who);
+            let expected =
+                pallet_transaction_payment::Pallet::<Runtime>::compute_fee(LEN as u32, &info(), 0);
+
+            let (_, origin) = ChargeTransaction::<Runtime>::fee(0)
+                .validate_and_prepare(
+                    RawOrigin::Signed(who.clone()).into(),
+                    &call(),
+                    &info(),
+                    LEN,
+                    0,
+                )
+                .expect("fee payment works");
+            assert!(expected > 0);
+            assert_eq!(Balances::balance(&who), before - expected);
+            assert_eq!(frame_system::ensure_signed(origin).ok(), Some(who));
+        });
+    }
+
+    #[test]
+    fn account_subscription_pays_without_fees_and_below_ordinary_fee_class() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let who = account(1);
+            assert_ok!(Balances::mint_into(&who, 1_000 * XRT));
+            let generation = subscribe(&who);
+            let balance = Balances::balance(&who);
+            let ext = || {
+                ChargeTransaction::<Runtime>::subscription(
+                    AuthorizationContext::Account(who.clone()),
+                    generation,
+                )
+            };
+
+            let (valid, _, _) = ext()
+                .validate_only(
+                    RawOrigin::Signed(who.clone()).into(),
+                    &call(),
+                    &info(),
+                    LEN,
+                    TransactionSource::External,
+                    0,
+                )
+                .expect("subscription transaction is valid");
+            let fee_priority = ChargeTransaction::<Runtime>::fee(500 * XRT)
+                .validate_only(
+                    RawOrigin::Signed(who.clone()).into(),
+                    &call(),
+                    &info(),
+                    LEN,
+                    TransactionSource::External,
+                    0,
+                )
+                .expect("fee transaction is valid")
+                .0
+                .priority;
+            assert!(valid.priority >= priority::SUBSCRIPTION_BASE);
+            assert!(fee_priority < priority::SUBSCRIPTION_BASE);
+
+            assert_ok!(ext().validate_and_prepare(
+                RawOrigin::Signed(who.clone()).into(),
+                &call(),
+                &info(),
+                LEN,
+                0
+            ));
+            assert_eq!(Balances::balance(&who), balance);
+            let cost = Transaction::estimated_cost(LEN, &info());
+            assert!(cost > 0 && cost < 6 * XRT);
+        });
+    }
+
+    #[test]
+    fn stale_generation_is_rejected_without_fee_fallback() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let who = account(1);
+            assert_ok!(Balances::mint_into(&who, 1_000 * XRT));
+            let generation = subscribe(&who);
+            let balance = Balances::balance(&who);
+
+            let result = ChargeTransaction::<Runtime>::subscription(
+                AuthorizationContext::Account(who.clone()),
+                generation + 1,
+            )
+            .validate_and_prepare(
+                RawOrigin::Signed(who.clone()).into(),
+                &call(),
+                &info(),
+                LEN,
+                0,
+            );
+            assert_eq!(
+                result.err(),
+                Some(
+                    InvalidTransaction::Custom(pallet_robonomics_transaction::GENERATION_MISMATCH)
+                        .into()
+                )
+            );
+            assert_eq!(Balances::balance(&who), balance);
+        });
+    }
+
+    #[test]
+    fn subscriber_without_balance_passes_the_nonce_check_and_pays() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let who = account(1);
+            assert_eq!(Balances::balance(&who), 0);
+            let generation = subscribe(&who);
+
+            let nonce = frame_system::CheckNonce::<Runtime>::from(0);
+            let charge = ChargeTransaction::<Runtime>::subscription(
+                AuthorizationContext::Account(who.clone()),
+                generation,
+            );
+            assert_ok!(nonce.validate_only(
+                RawOrigin::Signed(who.clone()).into(),
+                &call(),
+                &info(),
+                LEN,
+                TransactionSource::External,
+                0,
+            ));
+            assert_ok!(charge.validate_and_prepare(
+                RawOrigin::Signed(who.clone()).into(),
+                &call(),
+                &info(),
+                LEN,
+                0
+            ));
+            assert_eq!(Balances::balance(&who), 0);
+        });
+    }
+
+    #[test]
+    fn signer_without_account_or_subscription_is_rejected() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let result = frame_system::CheckNonce::<Runtime>::from(0).validate_only(
+                RawOrigin::Signed(account(9)).into(),
+                &call(),
+                &info(),
+                LEN,
+                TransactionSource::External,
+                0,
+            );
+            assert_eq!(result.err(), Some(InvalidTransaction::Payment.into()));
+        });
+    }
+
+    #[test]
+    fn node_funding_needs_a_local_limit_provider() {
+        sp_io::TestExternalities::default().execute_with(|| {
+            let (owner, actor) = (account(1), account(2));
+            assert_ok!(Balances::mint_into(&owner, 1_000 * XRT));
+            assert_ok!(CPS::create_node(
+                RawOrigin::Signed(owner.clone()).into(),
+                None,
+                None,
+                None,
+                None
+            ));
+            assert_ok!(CPS::grant_access(
+                RawOrigin::Signed(owner.clone()).into(),
+                NodeId(0),
+                actor.clone(),
+                Capability::Transaction,
+                GrantMode::Node,
+            ));
+            let generation = subscribe(&owner);
+
+            // Authorized, but the runtime has no local limits yet.
+            let result = ChargeTransaction::<Runtime>::subscription(
+                AuthorizationContext::Node(NodeId(0)),
+                generation,
+            )
+            .validate_and_prepare(
+                RawOrigin::Signed(actor).into(),
+                &call(),
+                &info(),
+                LEN,
+                0,
+            );
+            assert_eq!(result.err(), Some(InvalidTransaction::Payment.into()));
+        });
+    }
+}
+
+mod subscription_capacity {
+    use pallet_robonomics_cps::NodeId;
+    use pallet_robonomics_transaction::ChargeTransaction;
+    use parity_scale_codec::Encode;
+    use polkadot_sdk::{
+        cumulus_pallet_weight_reclaim, frame_metadata_hash_extension,
+        frame_support::{
+            dispatch::{DispatchClass, GetDispatchInfo},
+            traits::Get,
+        },
+        frame_system::{
+            self, CheckEra, CheckGenesis, CheckNonZeroSender, CheckNonce, CheckSpecVersion,
+            CheckTxVersion, CheckWeight,
+        },
+        sp_core,
+        sp_runtime::generic::Era,
+    };
+    use robonomics_runtime::{
+        AccountId, Address, MaxSubscriptionTransactionRate, Runtime, RuntimeBlockLength,
+        RuntimeBlockWeights, RuntimeCall, Signature, Transaction, TransactionBurstPeriod,
+        TxExtension, UncheckedExtrinsic, MIN_EXTRINSIC_LENGTH,
+    };
+    use robonomics_subscription_primitives::AuthorizationContext;
+
+    fn extrinsic(
+        call: RuntimeCall,
+        context: AuthorizationContext<AccountId, NodeId>,
+    ) -> UncheckedExtrinsic {
+        let extension: TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim::new((
+            CheckNonZeroSender::<Runtime>::new(),
+            CheckSpecVersion::<Runtime>::new(),
+            CheckTxVersion::<Runtime>::new(),
+            CheckGenesis::<Runtime>::new(),
+            CheckEra::<Runtime>::from(Era::Immortal),
+            CheckNonce::<Runtime>::from(0),
+            CheckWeight::<Runtime>::new(),
+            ChargeTransaction::<Runtime>::subscription(context, 1),
+            frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+        ));
+        UncheckedExtrinsic::new_signed(
+            call,
+            Address::Id(AccountId::new([1; 32])),
+            Signature::Sr25519(sp_core::sr25519::Signature::from_raw([0; 64])),
+            extension,
+        )
+    }
+
+    fn account_extrinsic(call: RuntimeCall) -> UncheckedExtrinsic {
+        extrinsic(call, AuthorizationContext::Account(AccountId::new([1; 32])))
+    }
+
+    fn remark(len: usize) -> RuntimeCall {
+        RuntimeCall::System(frame_system::Call::remark {
+            remark: vec![0; len],
+        })
+    }
+
+    #[test]
+    fn minimal_length_bounds_every_subscription_extrinsic() {
+        let node = extrinsic(remark(0), AuthorizationContext::Node(NodeId(u64::MAX)));
+        let account = account_extrinsic(remark(0));
+        assert!(node.encoded_size() as u32 >= MIN_EXTRINSIC_LENGTH);
+        assert!(account.encoded_size() as u32 >= MIN_EXTRINSIC_LENGTH);
+    }
+
+    #[test]
+    fn rate_cap_is_limited_by_a_block_of_the_cheapest_transactions() {
+        let blocks = RuntimeBlockWeights::get();
+        let class = blocks.get(DispatchClass::Normal);
+        let rate = MaxSubscriptionTransactionRate::get();
+        assert!(rate > 0);
+
+        // Everything a fully charged bucket allows in one block is spent on
+        // identical full extrinsics, as the transaction pool would admit.
+        let spendable = rate * TransactionBurstPeriod::get() as u128;
+        for payload in [0, 100, 1_000] {
+            let xt = account_extrinsic(remark(payload));
+            let len = xt.encoded_size();
+            let info = xt.get_dispatch_info();
+            let count = spendable / Transaction::estimated_cost(len, &info);
+            assert!(count > 0);
+
+            let weight = info.total_weight().saturating_add(class.base_extrinsic);
+            let max = class.max_total.expect("Normal class is limited");
+            assert!(
+                weight.saturating_mul(count as u64).all_lte(max),
+                "{payload}: {count} transactions of {weight:?} exceed {max:?}"
+            );
+            assert!(
+                len as u128 * count
+                    <= *RuntimeBlockLength::get().max.get(DispatchClass::Normal) as u128,
+                "{payload}: {count} transactions of {len} bytes exceed the block length"
+            );
+        }
+    }
+}

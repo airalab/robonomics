@@ -120,9 +120,27 @@ Access entry gives an account a `Capability` at a node, in one of two modes:
 |---------------|-------------------------------------------------------------------------------------------------|
 | `Write`       | `set_meta`, `set_payload`                                                                       |
 | `CreateScope` | `create_scope`: a new nested Scope at an ordinary node, or replacement of the Scope at its root |
+| `Transaction` | Funding transactions from the Scope owner's subscription in the context of the node (see below) |
 
 Adding child nodes, deleting nodes, and granting or revoking Access require
 the Scope owner and cannot be delegated.
+
+### Subscription resource authorization
+
+CPS implements `ResourceAuthorization` of `robonomics-subscription-primitives`.
+For `Resource::Transaction` it maps an `AuthorizationContext` to a
+`ResourceContext { owner, local_id }`:
+
+| Context              | Check                                                          | Result                                    |
+|----------------------|----------------------------------------------------------------|-------------------------------------------|
+| `Account(a)`         | the actor is `a`                                               | `owner = a`, `local_id = None`            |
+| `Node(n)`            | the actor owns the Scope of `n` or holds `Capability::Transaction` (same rules as `Pallet::authorize`) | `owner = Scope owner`, `local_id = Some(ScopeId)` |
+| `NodeIdentity(a)`    | `a` is resolved to its canonical node, then as `Node`          | same as the canonical `Node` context      |
+
+The `NodeId` is the authorization context and the `ScopeId` is the local
+accounting context: all nodes of a Scope share one local accounting state,
+and a node identity never becomes the accounting identifier, so changing it
+does not reset accounting. Other resources fail with `UnsupportedResource`.
 
 Example:
 
