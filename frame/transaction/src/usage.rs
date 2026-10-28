@@ -38,17 +38,14 @@ impl<T: Config> Pallet<T> {
     ///
     /// It reuses the fee primitives of `pallet-transaction-payment` but
     /// leaves out the congestion multiplier and the tip, so the same call,
-    /// length and weight cost the same under any network load. Transactions
-    /// that do not pay fees cost nothing.
+    /// length and weight cost the same under any network load. Currency fee
+    /// exemptions do not waive Subscription resource usage.
     pub fn baseline_cost(
         len: u32,
         weight: Weight,
-        pays_fee: Pays,
+        _pays_fee: Pays,
         class: DispatchClass,
     ) -> BalanceOf<T> {
-        if pays_fee == Pays::No {
-            return Default::default();
-        }
         let base_fee = pallet_transaction_payment::Pallet::<T>::weight_to_fee(
             <T as frame_system::Config>::BlockWeights::get()
                 .get(class)
