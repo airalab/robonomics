@@ -15,8 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Get the project root
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Public endpoints
-KUSAMA_PUBLIC_ENDPOINT="wss://kusama.rpc.robonomics.network"
-POLKADOT_PUBLIC_ENDPOINT="wss://polkadot.rpc.robonomics.network"
+ENDPOINT="wss://polkadot.rpc.robonomics.network"
 
 # Change to project root
 cd "${PROJECT_ROOT}"
@@ -62,18 +61,7 @@ echo ""
 echo -e "${GREEN}Starting try-runtime on live chain${NC}"
 echo "=================================================="
 
-if [ -z "$1" ]; then
-    ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
-elif [ "$1" == "kusama" ]; then
-    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
-elif [ "$1" == "polkadot" ]; then
-    ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
-else
-    echo -e "${RED} Invalid argument: should be set to 'kusama' or 'polkadot'.${NC}"
-    exit 1
-fi
-
 echo -e "${GREEN} Endpoint: ${ENDPOINT}${NC}"
 echo ""
 
-try-runtime --runtime $RUNTIME on-runtime-upgrade --checks all --blocktime 6000 live --uri $ENDPOINT 
+try-runtime --runtime $RUNTIME on-runtime-upgrade --checks all --blocktime 6000 $1 live --uri $ENDPOINT
