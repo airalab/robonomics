@@ -8,6 +8,11 @@ on:
     - 'master'
 
   workflow_call:
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
     outputs:
       status:
         description: "Status of nightly builds"
