@@ -89,3 +89,8 @@ We welcome contributions! Please see our [Contributing Guidelines](https://githu
 ## License
 
 Robonomics is licensed under the Apache License 2.0. See [LICENSE](./LICENSE) for details.
+
+## Maintainer
+
+Robonomics is maintained by Akagi Engineering Co., Ltd. (赤城エンジニアリング株式会社, corporate number 9070001040328),
+1953-1 Naegashima-machi, Maebashi-shi, Gunma 371-0241, Japan. Contact: research@robonomics.network.
