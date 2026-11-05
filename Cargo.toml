@@ -1,7 +1,7 @@
 [workspace.package]
 version = "53.0.0"
 edition = "2021"
-authors = ["Airalab <research@robonomics.network>"]
+authors = ["Akagi Engineering Co., Ltd. <research@robonomics.network>", "Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
 homepage = "https://robonomics.network"
 repository = "https://github.com/airalab/robonomics"
