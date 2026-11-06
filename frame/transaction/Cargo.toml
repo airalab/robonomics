@@ -1,0 +1,56 @@
+[package]
+name = "pallet-robonomics-transaction"
+description = "Robonomics transaction runtime module: Subscription Transaction resource consumer and payment routing."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["parity-scale-codec", "scale-info"]
+
+[dependencies]
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "sp-runtime",
+  "frame-system",
+  "frame-support",
+  "pallet-transaction-payment",
+] }
+robonomics-subscription-primitives.workspace = true
+
+[dev-dependencies]
+polkadot-sdk = { workspace = true, features = [
+  "std",
+  "sp-io",
+  "pallet-balances",
+] }
+pallet-robonomics-cps.workspace = true
+pallet-robonomics-subscription.workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "polkadot-sdk/std",
+  "pallet-robonomics-cps/std",
+  "pallet-robonomics-subscription/std",
+  "robonomics-subscription-primitives/std",
+]
+
+runtime-benchmarks = [
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
+  "pallet-robonomics-cps/runtime-benchmarks",
+  "pallet-robonomics-subscription/runtime-benchmarks",
+]
+
+try-runtime = [
+  "polkadot-sdk/try-runtime",
+  "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-subscription/try-runtime",
+]

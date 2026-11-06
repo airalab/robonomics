@@ -1,0 +1,41 @@
+[package]
+name = "pallet-robonomics-subscription"
+description = "Robonomics subscription runtime module: time-based global and local resource accounting."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["parity-scale-codec", "scale-info"]
+
+[dependencies]
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+polkadot-sdk = { workspace = true, features = [
+  "sp-runtime",
+  "frame-system",
+  "frame-support",
+] }
+robonomics-subscription-primitives.workspace = true
+
+[dev-dependencies]
+polkadot-sdk = { workspace = true, features = ["std", "sp-io"] }
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "polkadot-sdk/std",
+  "robonomics-subscription-primitives/std",
+]
+
+runtime-benchmarks = [
+  "polkadot-sdk/runtime-benchmarks",
+  "polkadot-sdk/frame-benchmarking",
+]
+
+try-runtime = ["polkadot-sdk/try-runtime"]

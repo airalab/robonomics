@@ -46,6 +46,8 @@ This repository is organized as a Cargo workspace with the following structure:
 - **`frame/`** - Custom FRAME pallets for IoT and robotics
   - `collator-rewards/` - Generic collator (block author) rewards
   - `cps/` - Cyber-physical System pallet (generic digital twin)
+  - `subscription/` - Subscription resource accounting, primitives and allocators
+  - `transaction/` - Transaction payment routing: Fee or Subscription-funded
   - **DEPRECATED** - following pallets will be removed in near future
   - `datalog/` - Immutable on-chain data logging with time-series storage
   - `launch/` - Robot/device launch commands with parameter support

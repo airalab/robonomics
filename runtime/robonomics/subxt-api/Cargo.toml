@@ -12,6 +12,7 @@ build = "build.rs"
 [dependencies]
 parity-scale-codec.workspace = true
 subxt.workspace = true
+scale-info = { workspace = true, features = ["std"] }
 
 [build-dependencies]
 robonomics-runtime-metadata.workspace = true

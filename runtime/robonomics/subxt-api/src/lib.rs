@@ -91,7 +91,13 @@
 pub use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
 
-use subxt::config::DefaultTransactionExtensions;
+mod extensions;
+
+pub use extensions::{
+    AuthorizationContext, ExtrinsicParamsBuilderExt, Payment, RobonomicsTransactionExtensions,
+    CHARGE_TRANSACTION,
+};
+
 use subxt::SubstrateConfig;
 
 /// Type for extrinsic events from blockchain transactions.
@@ -121,37 +127,6 @@ use subxt::SubstrateConfig;
 /// # }
 /// ```
 pub type ExtrinsicEvents = subxt::extrinsics::ExtrinsicEvents<RobonomicsConfig>;
-
-/// A struct representing the signed extra and additional parameters required
-/// to construct a transaction for a Robonomics node.
-///
-/// This type alias uses the default Substrate extrinsic parameters, which include:
-/// - **CheckNonZeroSender**: Ensures the sender is not the zero address
-/// - **CheckSpecVersion**: Validates the runtime spec version
-/// - **CheckTxVersion**: Validates the transaction version
-/// - **CheckGenesis**: Validates the genesis hash
-/// - **CheckMortality**: Handles transaction mortality (era)
-/// - **CheckNonce**: Manages account nonce
-/// - **CheckWeight**: Validates transaction weight
-/// - **ChargeTransactionPayment**: Handles transaction fees
-///
-/// # Example
-///
-/// ```no_run
-/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsTransactionExtensions};
-/// # use subxt::OnlineClient;
-/// # use subxt_signer::sr25519::dev;
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
-/// let alice = dev::alice();
-/// let tx = api::transactions().system().remark(vec![1, 2, 3]);
-///
-/// // Use default params
-/// let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
-/// # Ok(())
-/// # }
-/// ```
-pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 
 /// Default configuration type for Robonomics blockchain nodes.
 ///

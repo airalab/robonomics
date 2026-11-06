@@ -376,12 +376,12 @@ let client = OnlineClient::<RobonomicsConfig>::from_rpc_client(rpc_client).await
 ### Custom Extrinsic Parameters
 
 ```rust
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
+use robonomics_runtime_subxt_api::{api, ExtrinsicParamsBuilderExt, Payment, RobonomicsConfig};
 use subxt::config::DefaultExtrinsicParamsBuilder;
 
 // Build custom extrinsic params
 let params = DefaultExtrinsicParamsBuilder::<RobonomicsConfig>::new()
-    .tip(1_000_000)  // Add a tip
+    .payment(Payment::Fee { tip: 1_000_000 })  // Add a tip
     .build();
 
 // Use with transaction
@@ -390,6 +390,30 @@ client.tx()
     .await?
     .sign_and_submit(&tx, &signer, params)
     .await?;
+```
+
+### Transaction Payment
+
+The runtime pays for a transaction with the `ChargeTransaction` extension, which
+replaces `ChargeTransactionPayment`. The payment is part of the signed
+transaction and there is no fallback between the two modes:
+
+| `Payment`                                  | Pays with                                                     |
+|--------------------------------------------|---------------------------------------------------------------|
+| `Payment::Fee { tip }` (default, tip `0`)  | the ordinary fee market, as before                            |
+| `Payment::account(owner, generation)`      | the Transaction resource of the signer's own subscription     |
+| `Payment::node(node, generation)`          | the subscription of the CPS Scope owner, as a node actor      |
+| `Payment::node_identity(identity, generation)` | the same, with the node addressed by its identity account |
+
+`generation` is the generation of the subscription the transaction was
+prepared against; a transaction signed for an older generation is rejected.
+The `tip` set by `DefaultExtrinsicParamsBuilder::tip` has no effect any more:
+use `Payment::Fee { tip }` instead.
+
+```rust
+let params = DefaultExtrinsicParamsBuilder::<RobonomicsConfig>::new()
+    .payment(Payment::account(owner_account_id, generation))
+    .build();
 ```
 
 ### Offline Signing

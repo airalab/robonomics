@@ -81,6 +81,7 @@ use polkadot_sdk::sp_version::RuntimeVersion;
 mod genesis_config_presets;
 
 pub mod common;
+pub mod purchase_deposit;
 pub mod xcm_config;
 pub use common::{consensus::*, currency::*, fee::*, *};
 
@@ -99,7 +100,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 1,
     system_version: 1,
     authoring_version: 1,
-    transaction_version: 4,
+    transaction_version: 5,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -608,6 +609,162 @@ impl pallet_robonomics_cps::Config for Runtime {
     type BenchmarkHelper = CpsBenchmarkHelper;
 }
 
+/// Local resource limits of subscriptions.
+///
+/// No limit provider exists yet, so local consumption is forbidden until a
+/// provider (for example CPS scopes) is wired in.
+pub struct NoLocalResourceLimits;
+
+impl robonomics_subscription_primitives::ResourceLimit for NoLocalResourceLimits {
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type ResourceId = robonomics_subscription_primitives::Resource;
+    type Limit = pallet_robonomics_subscription::Limit;
+
+    fn limit(_local: &Self::LocalId, _resource: Self::ResourceId) -> Option<Self::Limit> {
+        None
+    }
+}
+
+parameter_types! {
+    /// Idle time a Transaction bucket may accumulate, in milliseconds.
+    pub const TransactionBurstPeriod: u64 = 2 * MILLISECS_PER_BLOCK;
+    /// Granularity of the subscription expiration agenda, in milliseconds.
+    pub const ExpirationBucketSize: u64 = MILLISECS_PER_BLOCK;
+}
+
+/// Lower bound of the encoded size of a signed extrinsic, in bytes: a
+/// compact length prefix, the version, a `MultiAddress::Id`, an sr25519
+/// `MultiSignature`, the transaction extensions and an empty call.
+pub const MIN_EXTRINSIC_LENGTH: u32 = 100;
+
+/// Network capacity reserved for subscription Transaction rates, in `Wn` per
+/// millisecond.
+///
+/// Subscribers spend their allocated rates without paying, so the rates must
+/// never admit more work than a block can execute. A bucket accumulates
+/// `rate * TransactionBurstPeriod`, which is the most a subscriber can spend
+/// in one block. The cheapest possible transaction pays no more than the
+/// baseline cost of its mandatory overhead (the base extrinsic weight, the
+/// subscription charge extension and the minimal encoded length), so even
+/// when all capacity is spent on such transactions
+///
+/// ```text
+/// rate * TransactionBurstPeriod / minimal_cost <= transactions_per_block
+/// ```
+///
+/// where `transactions_per_block` is the number of overheads fitting in the
+/// tightest of the reference time, proof size and length budgets of the
+/// `Normal` dispatch class. The budgets exclude the block base weight and
+/// the average `on_initialize` weight, and all transactions are assumed to
+/// carry no call weight, the worst case.
+pub struct MaxSubscriptionTransactionRate;
+
+impl MaxSubscriptionTransactionRate {
+    /// Number of the cheapest possible subscription transactions a block can
+    /// hold.
+    pub fn transactions_per_block() -> u64 {
+        let weights = RuntimeBlockWeights::get();
+        let class = weights.get(DispatchClass::Normal);
+        let reserved = weights
+            .base_block
+            .saturating_add(AVERAGE_ON_INITIALIZE_RATIO * weights.max_block);
+        let budget = class
+            .max_total
+            .unwrap_or(weights.max_block)
+            .saturating_sub(reserved);
+        let overhead = Self::overhead();
+        let by_time = budget.ref_time() / overhead.ref_time().max(1);
+        let by_proof = budget.proof_size() / overhead.proof_size().max(1);
+        let by_length =
+            RuntimeBlockLength::get().max.get(DispatchClass::Normal) / MIN_EXTRINSIC_LENGTH;
+        by_time.min(by_proof).min(u64::from(by_length))
+    }
+
+    /// Weight every subscription transaction pays regardless of its call.
+    fn overhead() -> Weight {
+        let class_weights = RuntimeBlockWeights::get();
+        class_weights
+            .get(DispatchClass::Normal)
+            .base_extrinsic
+            .saturating_add(
+                <<Runtime as pallet_robonomics_transaction::Config>::WeightInfo as
+                    pallet_robonomics_transaction::WeightInfo>::subscription_charge(),
+            )
+    }
+
+    /// Baseline cost of the cheapest possible subscription transaction.
+    pub fn minimal_cost() -> Balance {
+        Transaction::baseline_cost(
+            MIN_EXTRINSIC_LENGTH,
+            Self::overhead(),
+            frame_support::pallet_prelude::Pays::Yes,
+            DispatchClass::Normal,
+        )
+    }
+}
+
+impl frame_support::traits::Get<Balance> for MaxSubscriptionTransactionRate {
+    fn get() -> Balance {
+        let spendable =
+            Balance::from(Self::transactions_per_block()).saturating_mul(Self::minimal_cost());
+        spendable / Balance::from(TransactionBurstPeriod::get())
+    }
+}
+
+impl pallet_robonomics_subscription::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Time = Timestamp;
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type ResourceLimits = NoLocalResourceLimits;
+    type TransactionBurstPeriod = TransactionBurstPeriod;
+    type MaxSubscriptionTransactionRate = MaxSubscriptionTransactionRate;
+    type MaxResources = ConstU32<3>;
+    type ExpirationBucketSize = ExpirationBucketSize;
+    type MaxExpirationsPerBucket = ConstU32<64>;
+    type MaxExpirationsPerBlock = ConstU32<128>;
+    type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_robonomics_subscription_governance::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AllocateOrigin = EnsureRoot<AccountId>;
+    type Allocator = Subscription;
+    type WeightInfo = pallet_robonomics_subscription_governance::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_robonomics_subscription_purchase::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ManagementOrigin = EnsureRoot<AccountId>;
+    type Allocator = Subscription;
+    type Balance = Balance;
+    type DepositProduct = ConstU32<0>;
+    type WeightInfo = pallet_robonomics_subscription_purchase::weights::SubstrateWeight<Runtime>;
+}
+
+/// Converts the baseline transaction cost in `Wn` to Subscription usage.
+pub struct TransactionUsage;
+
+impl sp_runtime::traits::Convert<Balance, pallet_robonomics_subscription::Usage>
+    for TransactionUsage
+{
+    fn convert(cost: Balance) -> pallet_robonomics_subscription::Usage {
+        pallet_robonomics_subscription::Usage::Transaction(cost)
+    }
+}
+
+impl pallet_robonomics_transaction::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ContextId = robonomics_subscription_primitives::AuthorizationContext<
+        AccountId,
+        pallet_robonomics_cps::NodeId,
+    >;
+    type LocalId = pallet_robonomics_cps::ScopeId;
+    type Authorization = CPS;
+    type Accounting = Subscription;
+    type ToUsage = TransactionUsage;
+    type WeightInfo = pallet_robonomics_transaction::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_digital_twin::WeightInfo<Runtime>;
@@ -721,6 +878,18 @@ mod runtime {
     #[runtime::pallet_index(57)]
     pub type CPS = pallet_robonomics_cps;
 
+    #[runtime::pallet_index(58)]
+    pub type Subscription = pallet_robonomics_subscription;
+
+    #[runtime::pallet_index(59)]
+    pub type SubscriptionGovernance = pallet_robonomics_subscription_governance;
+
+    #[runtime::pallet_index(60)]
+    pub type Purchase = pallet_robonomics_subscription_purchase;
+
+    #[runtime::pallet_index(61)]
+    pub type Transaction = pallet_robonomics_transaction;
+
     //
     // XCM support pallets.
     //
@@ -809,7 +978,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
-        pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+        pallet_robonomics_transaction::ChargeTransaction<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),
 >;
@@ -1023,9 +1192,11 @@ impl_runtime_apis! {
     impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
         fn query_acceptable_payment_assets(xcm_version: staging_xcm::Version) -> Result<Vec<staging_xcm::VersionedAssetId>, xcm_runtime_apis::fees::Error> {
             use polkadot_sdk::staging_xcm::latest::prelude::*;
-            // Currently only the native token (LocalLocation) is accepted for XCM fees
-            // Additional assets can be added here when multi-asset fee payment is supported
-            let acceptable_assets = vec![AssetId(xcm_config::LocalLocation::get())];
+            // The native token and USDT (paid at a fixed rate) are accepted for XCM fees
+            let acceptable_assets = vec![
+                AssetId(xcm_config::LocalLocation::get()),
+                xcm_config::UsdtId::get(),
+            ];
             XcmPallet::query_acceptable_payment_assets(xcm_version, acceptable_assets)
         }
 

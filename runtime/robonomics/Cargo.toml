@@ -84,6 +84,11 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
+pallet-robonomics-subscription.workspace = true
+pallet-robonomics-subscription-governance.workspace = true
+pallet-robonomics-subscription-purchase.workspace = true
+pallet-robonomics-transaction.workspace = true
+robonomics-subscription-primitives.workspace = true
 robonomics-collator-rewards.workspace = true
 
 [build-dependencies]
@@ -107,6 +112,11 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
   "pallet-robonomics-cps/std",
+  "pallet-robonomics-subscription/std",
+  "pallet-robonomics-subscription-governance/std",
+  "pallet-robonomics-subscription-purchase/std",
+  "pallet-robonomics-transaction/std",
+  "robonomics-subscription-primitives/std",
   "robonomics-collator-rewards/std",
 ]
 runtime-benchmarks = [
@@ -122,6 +132,10 @@ runtime-benchmarks = [
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-cps/runtime-benchmarks",
+  "pallet-robonomics-subscription/runtime-benchmarks",
+  "pallet-robonomics-subscription-governance/runtime-benchmarks",
+  "pallet-robonomics-subscription-purchase/runtime-benchmarks",
+  "pallet-robonomics-transaction/runtime-benchmarks",
 ]
 try-runtime = [
   "polkadot-sdk/try-runtime",
@@ -133,6 +147,10 @@ try-runtime = [
   "pallet-robonomics-liability/try-runtime",
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-subscription/try-runtime",
+  "pallet-robonomics-subscription-governance/try-runtime",
+  "pallet-robonomics-subscription-purchase/try-runtime",
+  "pallet-robonomics-transaction/try-runtime",
   "robonomics-collator-rewards/try-runtime",
 ]
 
